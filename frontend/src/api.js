@@ -50,7 +50,16 @@ export const loginEmployee = async (loginName, password) => {
             }]
         });
 
+        // Response structure from our proxy:
+        // { success: true, data: [...records], pagination: {...} }
+
         if (response.data.success && response.data.data.length > 0) {
+            // Return object structure expected by App.jsx
+            // App.jsx expects: { employee: ... }
+            // Our proxy returns records in 'data' array.
+            // Each record is: { fieldData: {...}, portalData: {...}, recordId: "..." }
+            // The old code returned: { employee: results[0].fieldData }
+
             const employeeRecord = response.data.data[0];
             return {
                 message: "Login successful",
@@ -67,12 +76,17 @@ export const loginEmployee = async (loginName, password) => {
     }
 };
 
+/**
+ * Generic function to fetch records from any FileMaker layout.
+ * Automatically chooses between GET (all records) and POST (filtered search).
+ */
 export const getRecords = async (layout, options = {}) => {
     const { query, sort, limit, offset } = options;
 
     try {
         let response;
         if (query && query.length > 0) {
+            // Use _find for complex queries
             response = await api.post(`/filemaker/layouts/${layout}/_find`, {
                 query,
                 sort,
@@ -80,13 +94,14 @@ export const getRecords = async (layout, options = {}) => {
                 offset
             });
         } else {
+            // Use records for simple list fetching
             response = await api.get(`/filemaker/layouts/${layout}/records`, {
                 params: { limit, offset }
             });
         }
 
         if (response.data.success) {
-            return response.data;
+            return response.data; // Returns { success, data, pagination }
         } else {
             throw { error: response.data.error || `Failed to fetch records from ${layout}` };
         }
@@ -100,12 +115,15 @@ export const getRecords = async (layout, options = {}) => {
 export const getEmployees = async (options = {}) => {
     try {
         const result = await getRecords('Employees', options);
-        return result;
+        return result; // Return full result including pagination info
     } catch (error) {
         throw error;
     }
 };
 
+/**
+ * Create a new record in a specific layout
+ */
 export const createRecord = async (layout, fieldData) => {
     try {
         const response = await api.post(`/filemaker/layouts/${layout}/records`, {
@@ -124,6 +142,9 @@ export const createRecord = async (layout, fieldData) => {
     }
 };
 
+/**
+ * Update a record in a specific layout
+ */
 export const updateRecord = async (layout, recordId, fieldData) => {
     try {
         const response = await api.patch(`/filemaker/layouts/${layout}/records/${recordId}`, {
@@ -142,11 +163,15 @@ export const updateRecord = async (layout, recordId, fieldData) => {
     }
 };
 
+/**
+ * Get Employee by Firebase User ID
+ */
 export const getEmployeeByFirebaseId = async (uid) => {
     try {
         const response = await api.post('/filemaker/layouts/Employees/_find', {
             query: [{
-                FireBaseUserID: `==${uid}`
+                FireBaseUserID: `==${uid}`,
+                Active: "1"
             }]
         });
 
@@ -171,12 +196,16 @@ export const getEmployeeByFirebaseId = async (uid) => {
     }
 };
 
+/**
+ * Global Logout (Revoke Tokens)
+ */
 export const logoutGlobal = async () => {
     try {
         const response = await api.post('/auth/logout-global');
         return response.data;
     } catch (error) {
         console.warn("Global Logout Failed", error);
+        // Don't throw, just allow local logout to proceed
         return null;
     }
 };

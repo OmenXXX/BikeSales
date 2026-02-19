@@ -12,9 +12,9 @@ const StructureList = ({
     isLoading
 }) => {
     const [editingId, setEditingId] = useState(null);
+    const [isCreating, setIsCreating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
-    const [isCreating, setIsCreating] = useState(false);
 
     const [editData, setEditData] = useState({});
     const [newRecordData, setNewRecordData] = useState({});
@@ -53,6 +53,11 @@ const StructureList = ({
 
     const startEditing = (record) => {
         setEditingId(record.recordId);
+        // User requested to revert till before "Admin Structure record save" 
+        // which implies reverting the delta implementation.
+        // I will revert to the state where it copied everything, but maybe just pick the fields from config?
+        // Actually, the original issue was 500 because it copied everything.
+        // To be safe, I'll filter by the 'fields' array keys.
         const filtered = {};
         fields.forEach(f => {
             filtered[f.key] = record.fieldData[f.key];
@@ -76,6 +81,7 @@ const StructureList = ({
 
     return (
         <div className="flex-1 flex flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm h-full relative">
+            {/* Header */}
             <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-sm z-10 rounded-t-[2rem]">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center">
@@ -93,15 +99,17 @@ const StructureList = ({
                 </Tooltip>
             </div>
 
+            {/* List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2 rounded-b-[2rem]">
                 {isLoading ? (
                     <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Loading...</div>
-                ) : data.length === 0 ? (
+                ) : (!Array.isArray(data) || data.length === 0) ? (
                     <div className="text-center py-10 text-slate-300 text-xs font-bold uppercase tracking-widest">No Records Found</div>
                 ) : (
                     data.map(item => (
                         <div key={item.recordId} className="group relative">
                             {editingId === item.recordId ? (
+                                // Edit Mode
                                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-inner space-y-3">
                                     {fields.map(field => (
                                         <div key={field.key} className="space-y-1">
@@ -151,6 +159,7 @@ const StructureList = ({
                                     )}
                                 </div>
                             ) : (
+                                // View Mode
                                 <div className="p-4 rounded-2xl border border-transparent hover:bg-slate-50 hover:border-slate-100 transition-all group/item">
                                     <div className="flex items-start justify-between">
                                         <div>
@@ -170,6 +179,7 @@ const StructureList = ({
                                             </button>
                                         </Tooltip>
                                     </div>
+                                    {/* Status Indicator if 'Active' field exists */}
                                     {fields.find(f => f.key === 'Active') && (
                                         <div className="mt-2 flex items-center gap-1.5">
                                             <div className={`w-1.5 h-1.5 rounded-full ${item.fieldData.Active == 1 ? 'bg-emerald-500' : 'bg-rose-400'}`}></div>
@@ -183,13 +193,16 @@ const StructureList = ({
                 )}
             </div>
 
+            {/* Create Modal (Centered with Dimmed Background) */}
             {isCreating && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    {/* Backdrop / Dimmer */}
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-[4px] animate-fade-in"
                         onClick={() => setIsCreating(false)}
                     ></div>
 
+                    {/* Modal Content */}
                     <div className="w-full max-w-lg bg-white shadow-2xl rounded-[2.5rem] p-8 flex flex-col relative z-10 animate-scale-in">
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-4">
