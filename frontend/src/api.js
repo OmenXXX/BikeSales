@@ -38,24 +38,20 @@ api.interceptors.request.use(async (config) => {
     }
 
     // 3. Global Outbound Scrambling (POST/PATCH)
-    if ((config.method === 'post' || config.method === 'patch') && config.data && user) {
-        // Sanitize: Strip __pk_ID from PATCH to prevent FM errors
-        if (config.method === 'patch' && config.data.fieldData && config.data.fieldData.__pk_ID) {
-            delete config.data.fieldData.__pk_ID;
-        }
+    if ((config.method === 'post' || config.method === 'patch')) {
+        if (config.data && user) {
+            // Sanitize: Strip __pk_ID from PATCH to prevent FM errors
+            if (config.method === 'patch' && config.data.fieldData && config.data.fieldData.__pk_ID) {
+                delete config.data.fieldData.__pk_ID;
+            }
 
-        if (config.data) {
             console.log("🔒 Scrambling Request Payload:", config.data);
             const scrambled = scramble(config.data, user.uid);
             config.data = { payload: scrambled };
-            console.log("📤 Sending Scrambled Payload:", config.data);
+            // console.log("📤 Sending Scrambled Payload:", config.data);
+        } else if (config.data && !user) {
+            console.warn("⚠️ Request not scrambled: Missing user", { method: config.method });
         }
-    } else {
-        console.warn("⚠️ Request not scrambled: Missing token, user, or not POST/PATCH", {
-            method: config.method,
-            hasToken: !!token,
-            hasUser: !!user
-        });
     }
 
     return config;
