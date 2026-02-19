@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { auth } from './firebase';
+import { scramble, descramble } from './utils/scrambler';
 
 // Get the base URL for the API Cloud Function
 // In the new structure, we have a single 'api' Cloud Function exporting an Express app.
@@ -15,12 +16,15 @@ const api = axios.create({
     },
 });
 
-// Request Interceptor: Inject Auth Token & Device UUID
+// Request Interceptor: Inject Auth Token, Device UUID & Scramble Payload
 api.interceptors.request.use(async (config) => {
+    const user = auth.currentUser;
+    let token = null;
+
     // 1. Firebase ID Token
-    if (auth.currentUser) {
+    if (user) {
         try {
-            const token = await auth.currentUser.getIdToken();
+            token = await user.getIdToken();
             config.headers.Authorization = `Bearer ${token}`;
         } catch (error) {
             console.warn("API: Failed to get ID token", error);
@@ -33,7 +37,48 @@ api.interceptors.request.use(async (config) => {
         config.headers['X-Device-UUID'] = deviceUUID;
     }
 
+    // 3. Global Outbound Scrambling (POST/PATCH)
+    if ((config.method === 'post' || config.method === 'patch') && config.data && user) {
+        // Sanitize: Strip __pk_ID from PATCH to prevent FM errors
+        if (config.method === 'patch' && config.data.fieldData && config.data.fieldData.__pk_ID) {
+            delete config.data.fieldData.__pk_ID;
+        }
+
+        if (config.data) {
+            console.log("🔒 Scrambling Request Payload:", config.data);
+            const scrambled = scramble(config.data, user.uid);
+            config.data = { payload: scrambled };
+            console.log("📤 Sending Scrambled Payload:", config.data);
+        }
+    } else {
+        console.warn("⚠️ Request not scrambled: Missing token, user, or not POST/PATCH", {
+            method: config.method,
+            hasToken: !!token,
+            hasUser: !!user
+        });
+    }
+
     return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
+// Response Interceptor: Descramble Incoming Data
+api.interceptors.response.use((response) => {
+    // Check for Global Scrambling
+    if (response.data && response.data._transport === 'XOR_GLOBAL' && response.data.payload) {
+        const user = auth.currentUser;
+        if (user) {
+            console.debug(`%c NETWORK_TAB_VIEW (Incoming): ${response.data.payload.substring(0, 20)}...`, "color: #9ca3af");
+
+            const decoded = descramble(response.data.payload, user.uid);
+            if (decoded) {
+                console.debug(`%c PROXY_DECODED_VIEW (Incoming):`, "color: #10b981", decoded);
+                response.data = decoded; // Unmask for the app
+            }
+        }
+    }
+    return response;
 }, (error) => {
     return Promise.reject(error);
 });
@@ -50,7 +95,16 @@ export const loginEmployee = async (loginName, password) => {
             }]
         });
 
+        // Response structure from our proxy:
+        // { success: true, data: [...records], pagination: {...} }
+
         if (response.data.success && response.data.data.length > 0) {
+            // Return object structure expected by App.jsx
+            // App.jsx expects: { employee: ... }
+            // Our proxy returns records in 'data' array.
+            // Each record is: { fieldData: {...}, portalData: {...}, recordId: "..." }
+            // The old code returned: { employee: results[0].fieldData }
+
             const employeeRecord = response.data.data[0];
             return {
                 message: "Login successful",
@@ -67,12 +121,17 @@ export const loginEmployee = async (loginName, password) => {
     }
 };
 
+/**
+ * Generic function to fetch records from any FileMaker layout.
+ * Automatically chooses between GET (all records) and POST (filtered search).
+ */
 export const getRecords = async (layout, options = {}) => {
     const { query, sort, limit, offset } = options;
 
     try {
         let response;
         if (query && query.length > 0) {
+            // Use _find for complex queries
             response = await api.post(`/filemaker/layouts/${layout}/_find`, {
                 query,
                 sort,
@@ -80,13 +139,14 @@ export const getRecords = async (layout, options = {}) => {
                 offset
             });
         } else {
+            // Use records for simple list fetching
             response = await api.get(`/filemaker/layouts/${layout}/records`, {
                 params: { limit, offset }
             });
         }
 
         if (response.data.success) {
-            return response.data;
+            return response.data; // Returns { success, data, pagination }
         } else {
             throw { error: response.data.error || `Failed to fetch records from ${layout}` };
         }
@@ -100,12 +160,15 @@ export const getRecords = async (layout, options = {}) => {
 export const getEmployees = async (options = {}) => {
     try {
         const result = await getRecords('Employees', options);
-        return result;
+        return result; // Return full result including pagination info
     } catch (error) {
         throw error;
     }
 };
 
+/**
+ * Create a new record in a specific layout
+ */
 export const createRecord = async (layout, fieldData) => {
     try {
         const response = await api.post(`/filemaker/layouts/${layout}/records`, {
@@ -124,6 +187,9 @@ export const createRecord = async (layout, fieldData) => {
     }
 };
 
+/**
+ * Update a record in a specific layout
+ */
 export const updateRecord = async (layout, recordId, fieldData) => {
     try {
         const response = await api.patch(`/filemaker/layouts/${layout}/records/${recordId}`, {
@@ -142,23 +208,20 @@ export const updateRecord = async (layout, recordId, fieldData) => {
     }
 };
 
+/**
+ * Get Employee by Firebase User ID
+ */
 export const getEmployeeByFirebaseId = async (uid) => {
     try {
+        // Use generic _find endpoint (Scrambled by Global Middleware)
         const response = await api.post('/filemaker/layouts/Employees/_find', {
-            query: [{
-                FireBaseUserID: `==${uid}`
-            }]
+            query: [{ FireBaseUserID: `==${uid}` }]
         });
 
         if (response.data.success && response.data.data.length > 0) {
-            const employeeRecord = response.data.data[0];
             return {
                 message: "Employee found",
-                employee: {
-                    ...employeeRecord.fieldData,
-                    recordId: employeeRecord.recordId,
-                    modId: employeeRecord.modId
-                }
+                employee: response.data.data[0] // Return the full record object
             };
         } else {
             throw { error: "No employee record found for this user." };
@@ -171,12 +234,16 @@ export const getEmployeeByFirebaseId = async (uid) => {
     }
 };
 
+/**
+ * Global Logout (Revoke Tokens)
+ */
 export const logoutGlobal = async () => {
     try {
         const response = await api.post('/auth/logout-global');
         return response.data;
     } catch (error) {
         console.warn("Global Logout Failed", error);
+        // Don't throw, just allow local logout to proceed
         return null;
     }
 };
