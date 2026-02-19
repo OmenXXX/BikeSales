@@ -3,7 +3,6 @@ const https = require('https');
 const logger = require("firebase-functions/logger");
 const sessionService = require("./filemakerSessionService");
 const { ALLOWED_LAYOUTS, ALLOWED_SCRIPTS } = require("../config/whitelist");
-const { EXCLUDED_FIELDS, GLOBAL_FIELD_REGEX, CALCULATION_FIELD_REGEX } = require("../config/blacklist");
 const { formatResponse } = require("../utils/responseFormatter");
 
 const httpsAgent = new https.Agent({
@@ -149,33 +148,19 @@ class FileMakerProxyService {
 
     async update(layout, recordId, fieldData, uid = null, deviceUUID = null) {
         this._validateLayout(layout);
+
         try {
+            // Check if this is a Session Claim (updating z_session_id)
             const isSessionClaim = fieldData.hasOwnProperty('z_session_id');
             await this._validateSession(uid, deviceUUID, isSessionClaim);
-            const filteredData = this._filterFieldData(fieldData);
-            const body = { fieldData: filteredData };
-            await this._request("PATCH", `/layouts/${layout}/records/${recordId}`, body);
-            const freshResult = await this._request("GET", `/layouts/${layout}/records/${recordId}`);
-            const freshRecord = freshResult.response.data[0];
-            return formatResponse(true, freshRecord, null, "Record updated successfully");
+
+            const body = { fieldData };
+            const result = await this._request("PATCH", `/layouts/${layout}/records/${recordId}`, body);
+
+            return formatResponse(true, result.response, null, "Record updated successfully");
         } catch (error) {
             return this._handleError(error);
         }
-    }
-
-    _filterFieldData(fieldData) {
-        const filtered = {};
-        Object.keys(fieldData).forEach(key => {
-            const isExcluded = EXCLUDED_FIELDS.includes(key);
-            const isGlobal = GLOBAL_FIELD_REGEX.test(key);
-            const isCalculation = CALCULATION_FIELD_REGEX.test(key);
-            if (isExcluded || isGlobal || isCalculation) {
-                // Stripped
-            } else {
-                filtered[key] = fieldData[key];
-            }
-        });
-        return filtered;
     }
 
     async getSessionStatus(uid) {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import useFormManager from '../../hooks/useFormManager';
 import Tooltip from '../common/Tooltip';
 
 const StructureList = ({
@@ -17,19 +16,16 @@ const StructureList = ({
     const [error, setError] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
 
-    const {
-        formData: editData,
-        handleChange: handleEditChange,
-        getDeltaPayload,
-        reset: resetForm,
-        setFormData: setEditData
-    } = useFormManager({});
+    const [editData, setEditData] = useState({});
+    const [newRecordData, setNewRecordData] = useState({});
 
-    const {
-        formData: newRecordData,
-        handleChange: handleNewChange,
-        reset: resetNewForm
-    } = useFormManager({});
+    const handleEditChange = (key, value) => {
+        setEditData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleNewChange = (key, value) => {
+        setNewRecordData(prev => ({ ...prev, [key]: value }));
+    };
 
     const startCreating = () => {
         const initial = {};
@@ -37,7 +33,7 @@ const StructureList = ({
             if (f.defaultValue !== undefined) initial[f.key] = f.defaultValue;
             else initial[f.key] = '';
         });
-        resetNewForm(initial);
+        setNewRecordData(initial);
         setIsCreating(true);
     };
 
@@ -47,7 +43,7 @@ const StructureList = ({
         try {
             await onCreate(newRecordData);
             setIsCreating(false);
-            resetNewForm({});
+            setNewRecordData({});
         } catch (err) {
             setError(err.error || err.message || 'Failed to create record');
         } finally {
@@ -57,25 +53,20 @@ const StructureList = ({
 
     const startEditing = (record) => {
         setEditingId(record.recordId);
-        resetForm({ ...record.fieldData });
+        const filtered = {};
+        fields.forEach(f => {
+            filtered[f.key] = record.fieldData[f.key];
+        });
+        setEditData(filtered);
     };
 
     const handleSave = async (recordId) => {
         setError(null);
         setIsSaving(true);
         try {
-            const delta = getDeltaPayload();
-            const response = await onSave(recordId, delta);
-
-            if (response && response.data) {
-                const index = data.findIndex(item => item.recordId === recordId);
-                if (index !== -1) {
-                    data[index] = response.data;
-                }
-            }
-
+            await onSave(recordId, editData);
             setEditingId(null);
-            resetForm({});
+            setEditData({});
         } catch (err) {
             setError(err.error || err.message || 'Failed to update record');
         } finally {
