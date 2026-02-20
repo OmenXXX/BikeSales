@@ -78,7 +78,10 @@ export const AuthProvider = ({ children }) => {
             }
 
             const fingerprint = uuidv4();
-            const sessionString = `${fingerprint}|${new Date().toISOString()}|${deviceLabel.current}`;
+            // COMPOSITE KEY: DeviceUUID | TabFingerprint | Timestamp
+            // Index 0 (DeviceUUID) -> Backend Security
+            // Index 1 (TabFingerprint) -> Frontend Single-Tab Enforcement
+            const sessionString = `${deviceUUID.current}|${fingerprint}|${new Date().toISOString()}`;
 
             // Update Local State
             sessionStorage.setItem('tabFingerprint', fingerprint);
@@ -90,7 +93,7 @@ export const AuthProvider = ({ children }) => {
                 deviceUUID: deviceUUID.current,
                 lastLogin: serverTimestamp(),
                 email: currentUser.email
-            });
+			});
 
             // Update FileMaker (Source of Truth)
             if (stored) {
@@ -156,8 +159,8 @@ export const AuthProvider = ({ children }) => {
             };
 
             const fingerprint = uuidv4();
-            // FIX: Use deviceUUID for FileMaker SessionKey to match header checks
-            const sessionString = `${deviceUUID.current}|${new Date().toISOString()}|${deviceLabel.current}`;
+            // FIX: Composite Session Key (DeviceUUID | TabFingerprint | Timestamp)
+            const sessionString = `${deviceUUID.current}|${fingerprint}|${new Date().toISOString()}`;
 
             // 3. Storage Scrambling (using PrimaryKey as lock)
             const storageLock = PrimaryKey;
@@ -383,10 +386,17 @@ export const AuthProvider = ({ children }) => {
                     }
 
                     // 2. Session ID Check
-                    const remoteUUID = sessionId ? sessionId.split('|')[0] : null;
+                    // 2. Session ID Check (Composite Key)
+                    // Format: DeviceUUID | TabFingerprint | Timestamp
+                    const parts = sessionId ? sessionId.split('|') : [];
+                    const remoteDeviceUUID = parts[0];
+                    const remoteFingerprint = parts[1];
 
-                    if (remoteUUID && remoteUUID !== localFingerprint) {
-                        console.log(`HEARTBEAT_STATUS: Verified session for UID [${currentUser?.uid}]`);
+                    if (remoteDeviceUUID && remoteDeviceUUID !== deviceUUID.current) {
+                        console.warn(`HEARTBEAT_STATUS: Session Hijacked by another device!`);
+                        setShowConflictModal(true);
+                    } else if (remoteFingerprint && remoteFingerprint !== localFingerprint) {
+                        console.warn(`HEARTBEAT_STATUS: Session Active in another Tab!`);
                         setShowConflictModal(true);
                     } else {
                         console.log(`HEARTBEAT_STATUS: Verified session for UID [${currentUser?.uid}]`);
