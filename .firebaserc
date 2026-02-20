@@ -1,7 +1,14 @@
 {
   "projects": {
-    "BikeSalesStaging": "bikesakes"
+    "default": "bikesales-5006b"
   },
-  "targets": {},
-  "etags": {}
+  "targets": {
+    "bikesales-5006b": {
+      "hosting": {
+        "frontend": [
+          "bikesales-5006b"
+        ]
+      }
+    }
+  }
 }
