@@ -1,33 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../api';
 import StructureList from './StructureList';
-import { getRecords, createRecord, updateRecord } from '../../api';
 
 const AdminStructure = ({ primaryColor }) => {
-    const [modules, setModules] = useState([]);
-    const [centers, setCenters] = useState([]);
-    const [warehouses, setWarehouses] = useState([]);
-    const [passcodes, setPasscodes] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [structureData, setStructureData] = useState({
+        modules: [],
+        centers: [],
+        warehouses: [],
+        passcodes: []
+    });
 
     const fetchData = async () => {
-        setIsLoading(true);
+        setLoading(true);
         try {
-            const [modRes, cenRes, wahRes, pacRes] = await Promise.allSettled([
-                getRecords('Modules'),
-                getRecords('Centers'), 
-                getRecords('Warehouses'), 
-                getRecords('PAC')
+            const [modulesRes, centersRes, warehousesRes, passcodesRes] = await Promise.all([
+                api.get('/records/MODULES'),
+                api.get('/records/CENTERS'),
+                api.get('/records/WAREHOUSES'),
+                api.get('/records/PASSCODES')
             ]);
 
-            if (modRes.status === 'fulfilled') setModules(modRes.value.data);
-            if (cenRes.status === 'fulfilled') setCenters(cenRes.value.data);
-            if (wahRes.status === 'fulfilled') setWarehouses(wahRes.value.data);
-            if (pacRes.status === 'fulfilled') setPasscodes(pacRes.value.data);
-
+            setStructureData({
+                modules: modulesRes.data.data || [],
+                centers: centersRes.data.data || [],
+                warehouses: warehousesRes.data.data || [],
+                passcodes: passcodesRes.data.data || []
+            });
         } catch (error) {
-            console.error("Error fetching structure data:", error);
+            console.error('Error fetching structure records:', error);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
@@ -35,103 +38,103 @@ const AdminStructure = ({ primaryColor }) => {
         fetchData();
     }, []);
 
-    const handleCreate = async (layout, data, refreshSetter) => {
+    const handleSave = async (type, record) => {
         try {
-            await createRecord(layout, data);
-            fetchData(); 
-        } catch (error) {
-            console.error(`Failed to create ${layout}:`, error);
-            throw error;
-        }
-    };
-
-    const handleSave = async (layout, recordId, data) => {
-        try {
-            await updateRecord(layout, recordId, data);
+            const endpoint = `/records/${type.toUpperCase()}`;
+            if (record.recordId) {
+                await api.patch(`${endpoint}/${record.recordId}`, { fieldData: record.fieldData });
+            } else {
+                await api.post(endpoint, { fieldData: record.fieldData });
+            }
             fetchData();
+            return true;
         } catch (error) {
-            console.error(`Failed to update ${layout}:`, error);
-            throw error;
+            console.error(`Error saving ${type}:`, error);
+            return false;
         }
     };
 
     return (
-        <div className="h-full flex flex-col md:flex-row gap-6 p-6 md:p-10 overflow-hidden">
-
-            <div className="flex-1 min-w-[300px] h-full">
-                <StructureList
-                    title="Modules"
-                    icon="view_module" 
-                    data={modules}
-                    layoutName="Modules"
-                    isLoading={isLoading}
-                    primaryColor={primaryColor}
-                    fields={[
-                        { key: 'ModuleName', label: 'Module Name', type: 'text' },
-                        { key: 'Active', label: 'Status', type: 'checkbox', defaultValue: 1 }
-                    ]}
-                    onCreate={(data) => handleCreate('Modules', data)}
-                    onSave={(id, data) => handleSave('Modules', id, data)}
-                />
-            </div>
-
-            <div className="flex-1 min-w-[300px] h-full flex flex-col gap-6">
-
-                <div className="flex-1 h-1/2 min-h-0">
-                    <StructureList
-                        title="Centers"
-                        icon="business"
-                        data={centers}
-                        layoutName="Centers"
-                        isLoading={isLoading}
-                        primaryColor={primaryColor}
-                        fields={[
-                            { key: 'CenterName', label: 'Center Name', type: 'text' },
-                            { key: 'CenterCode', label: 'Code', type: 'text' },
-                            { key: 'Location', label: 'Location', type: 'text' }
-                        ]}
-                        onCreate={(data) => handleCreate('Centers', data)}
-                        onSave={(id, data) => handleSave('Centers', id, data)}
-                    />
+        <div className="p-8 space-y-12 max-w-[1400px] mx-auto pb-40">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-2xl bg-slate-900 text-white shadow-lg">
+                            <span className="material-icons-round text-2xl">hub</span>
+                        </div>
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">System Infrastructure</h2>
+                    </div>
+                    <p className="text-slate-500 font-bold ml-14">Define modules, logistics nodes, and security parameters.</p>
                 </div>
 
-                <div className="flex-1 h-1/2 min-h-0">
+                <button
+                    onClick={fetchData}
+                    className="flex items-center gap-3 bg-white px-6 py-3.5 rounded-2xl border-2 border-slate-50 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 font-black text-[11px] uppercase tracking-widest text-slate-900 group"
+                >
+                    <span className={`material-icons-round text-lg transition-transform duration-500 group-hover:rotate-180 ${loading ? 'animate-spin' : ''}`}>refresh</span>
+                    Synchronize Data
+                </button>
+            </div>
+
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="h-96 bg-slate-50 rounded-[2.5rem] animate-pulse"></div>
+                    ))}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     <StructureList
-                        title="Passcodes"
-                        icon="vpn_key"
-                        data={passcodes}
-                        layoutName="PAC"
-                        isLoading={isLoading}
-                        primaryColor="#A855F7" 
+                        title="Application Modules"
+                        icon="apps"
+                        data={structureData.modules}
+                        onSave={(rec) => handleSave('modules', rec)}
                         fields={[
-                            { key: 'UsedForDescription', label: 'Description', type: 'text' },
-                            { key: 'Passcode', label: 'Passcode', type: 'text', hideInList: true },
-                            { key: 'Active', label: 'Active Status', type: 'checkbox', defaultValue: 1 }
+                            { label: 'Module ID', key: 'id', placeholder: 'e.g. sales' },
+                            { label: 'Name/Label', key: 'label', placeholder: 'e.g. Sales Desk' },
+                            { label: 'Material Icon', key: 'icon', placeholder: 'e.g. shopping_cart' }
                         ]}
-                        onCreate={(data) => handleCreate('PAC', data)}
-                        onSave={(id, data) => handleSave('PAC', id, data)}
+                        primaryColor="#334155"
+                    />
+
+                    <StructureList
+                        title="Operational Centers"
+                        icon="location_city"
+                        data={structureData.centers}
+                        onSave={(rec) => handleSave('centers', rec)}
+                        fields={[
+                            { label: 'Identification', key: 'ID_Center', placeholder: 'e.g. C01' },
+                            { label: 'Location Name', key: 'Name', placeholder: 'e.g. Brooklyn Warehouse' }
+                        ]}
+                    />
+
+                    <StructureList
+                        title="Distribution Hubs"
+                        icon="inventory_2"
+                        data={structureData.warehouses}
+                        onSave={(rec) => handleSave('warehouses', rec)}
+                        fields={[
+                            { label: 'Warehouse ID', key: 'ID_Warehouse', placeholder: 'e.g. WH01' },
+                            { label: 'Center Link', key: 'ID_Center', placeholder: 'Parent Center ID' },
+                            { label: 'Tag/Label', key: 'Label', placeholder: 'e.g. Main Storage' }
+                        ]}
+                    />
+
+                    <StructureList
+                        title="Security Access Keys"
+                        icon="key"
+                        data={structureData.passcodes}
+                        onSave={(rec) => handleSave('passcodes', rec)}
+                        isSecurity={true}
+                        fields={[
+                            { label: 'Key Holder', key: 'Label', placeholder: 'e.g. Admin Override' },
+                            { label: 'Access Code', key: 'Passcode', placeholder: '6-digit numeric', type: 'password' }
+                        ]}
+                        primaryColor="#0f172a"
                     />
                 </div>
-            </div>
-
-            <div className="flex-1 min-w-[300px] h-full">
-                <StructureList
-                    title="Warehouses"
-                    icon="warehouse"
-                    data={warehouses}
-                    layoutName="Warehouses"
-                    isLoading={isLoading}
-                    primaryColor={primaryColor}
-                    fields={[
-                        { key: 'WarehouseName', label: 'Warehouse Name', type: 'text' },
-                        { key: 'WarehouseCode', label: 'Code', type: 'text' },
-                        { key: 'CenterID', label: 'Center ID', type: 'text' }
-                    ]}
-                    onCreate={(data) => handleCreate('Warehouses', data)}
-                    onSave={(id, data) => handleSave('Warehouses', id, data)}
-                />
-            </div>
-
+            )}
         </div>
     );
 };
