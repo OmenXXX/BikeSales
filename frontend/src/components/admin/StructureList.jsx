@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import useFormManager from '../../hooks/useFormManager';
+import React, { useState } from 'react';
 import Tooltip from '../common/Tooltip';
 
 const StructureList = ({
@@ -7,260 +6,219 @@ const StructureList = ({
     icon,
     data,
     fields,
-    primaryColor,
     onSave,
-    onCreate,
-    isLoading
+    isSecurity = false,
+    primaryColor = '#334155'
 }) => {
+    const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null);
-    const [isCreating, setIsCreating] = useState(false);
+    const [editForm, setEditForm] = useState({});
+    const [passcodeConfirm, setPasscodeConfirm] = useState('');
+    const [confirmingId, setConfirmingId] = useState(null);
 
-    const {
-        formData: editData,
-        handleChange: handleEditChange,
-        getDeltaPayload,
-        reset: resetForm,
-        setFormData: setEditData
-    } = useFormManager({});
-
-    const {
-        formData: newRecordData,
-        handleChange: handleNewChange,
-        reset: resetNewForm
-    } = useFormManager({});
-
-    const startCreating = () => {
-        const initial = {};
-        fields.forEach(f => {
-            if (f.defaultValue !== undefined) initial[f.key] = f.defaultValue;
-            else initial[f.key] = '';
-        });
-        resetNewForm(initial);
-        setIsCreating(true);
-    };
-
-    const handleCreate = async () => {
-        setError(null);
-        setIsSaving(true);
-        try {
-            await onCreate(newRecordData);
-            setIsCreating(false);
-            resetNewForm({});
-        } catch (err) {
-            setError(err.error || err.message || 'Failed to create record');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const startEditing = (record) => {
+    const handleEdit = (record) => {
         setEditingId(record.recordId);
-        resetForm({ ...record.fieldData });
+        setEditForm(record.fieldData);
+        setIsAdding(false);
     };
 
-    const handleSave = async (recordId) => {
-        setError(null);
-        setIsSaving(true);
-        try {
-            const delta = getDeltaPayload();
-            const response = await onSave(recordId, delta);
-
-            if (response && response.data) {
-                const index = data.findIndex(item => item.recordId === recordId);
-                if (index !== -1) {
-                    data[index] = response.data;
-                }
+    const handleSave = async (recordId = null) => {
+        // Validation for passcodes
+        if (isSecurity) {
+            if (!editForm.Passcode || editForm.Passcode.length !== 6 || isNaN(editForm.Passcode)) {
+                alert('Passcode must be exactly 6 digits.');
+                return;
             }
-
-            setEditingId(null);
-            resetForm({});
-        } catch (err) {
-            setError(err.error || err.message || 'Failed to update record');
-        } finally {
-            setIsSaving(false);
         }
+
+        const success = await onSave({ recordId, fieldData: editForm });
+        if (success) {
+            setEditingId(null);
+            setIsAdding(false);
+            setEditForm({});
+        }
+    };
+
+    const handleAdd = () => {
+        setEditForm(fields.reduce((acc, f) => ({ ...acc, [f.key]: '' }), {}));
+        setIsAdding(true);
+        setEditingId(null);
     };
 
     return (
-        <div className="flex-1 flex flex-col bg-white rounded-[2rem] border border-slate-100 shadow-sm h-full relative">
-            <div className="p-5 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-sm z-10 rounded-t-[2rem]">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center">
+        <div className="bg-white rounded-[2.5rem] border-2 border-slate-50 shadow-sm overflow-hidden flex flex-col h-[600px] hover:shadow-xl hover:border-slate-100 transition-all duration-500">
+            {/* Header */}
+            <div className="p-8 border-b border-slate-50 flex items-center justify-between pb-6">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: primaryColor }}>
                         <span className="material-icons-round">{icon}</span>
                     </div>
-                    <h3 className="text-lg font-black text-slate-800 tracking-tight">{title}</h3>
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">{title}</h3>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{data.length} Records Configured</p>
+                    </div>
                 </div>
-                <Tooltip text={`Add New ${title.slice(0, -1)}`} position="bottom">
+
+                <Tooltip text={`Add New ${title}`}>
                     <button
-                        onClick={startCreating}
-                        className="w-8 h-8 rounded-full bg-[#1a1d21] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform"
+                        onClick={handleAdd}
+                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all duration-300 flex items-center justify-center"
                     >
                         <span className="material-icons-round text-lg">add</span>
                     </button>
                 </Tooltip>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-2 rounded-b-[2rem]">
-                {isLoading ? (
-                    <div className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Loading...</div>
-                ) : data.length === 0 ? (
-                    <div className="text-center py-10 text-slate-300 text-xs font-bold uppercase tracking-widest">No Records Found</div>
-                ) : (
-                    data.map(item => (
-                        <div key={item.recordId} className="group relative">
-                            {editingId === item.recordId ? (
-                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 shadow-inner space-y-3">
-                                    {fields.map(field => (
-                                        <div key={field.key} className="space-y-1">
-                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                                            {field.type === 'checkbox' ? (
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleEditChange(field.key, editData[field.key] == 1 ? 0 : 1)}
-                                                        className={`w-10 h-5 rounded-full relative transition-colors ${editData[field.key] == 1 ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                                                    >
-                                                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${editData[field.key] == 1 ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                                                    </button>
-                                                    <span className="text-xs font-bold text-slate-600">{editData[field.key] == 1 ? 'Active' : 'Inactive'}</span>
-                                                </div>
-                                            ) : (
-                                                <input
-                                                    type="text"
-                                                    value={editData[field.key] || ''}
-                                                    onChange={e => handleEditChange(field.key, e.target.value)}
-                                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
-                                                />
-                                            )}
-                                        </div>
-                                    ))}
-                                    <div className="flex items-center gap-2 pt-2">
-                                        <Tooltip text="Save Changes" className="flex-1 w-full">
-                                            <button
-                                                onClick={() => handleSave(item.recordId)}
-                                                disabled={isSaving}
-                                                className="w-full py-1.5 rounded-lg bg-[#1a1d21] text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50"
-                                            >
-                                                {isSaving ? '...' : 'Save'}
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip text="Cancel Editing" className="flex-1 w-full">
-                                            <button
-                                                onClick={() => { setEditingId(null); setError(null); }}
-                                                disabled={isSaving}
-                                                className="w-full py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </Tooltip>
-                                    </div>
-                                    {editingId === item.recordId && error && (
-                                        <p className="text-[9px] font-bold text-rose-500 mt-2 text-center">{error}</p>
+            {/* List / Form Container */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-4 bg-slate-50/30">
+                {isAdding && (
+                    <RecordForm
+                        fields={fields}
+                        form={editForm}
+                        setForm={setEditForm}
+                        onSave={() => handleSave()}
+                        onCancel={() => setIsAdding(false)}
+                        primaryColor={primaryColor}
+                        title={`New ${title}`}
+                    />
+                )}
+
+                {data.map(item => {
+                    const isEditing = editingId === item.recordId;
+
+                    if (isEditing) {
+                        return (
+                            <RecordForm
+                                key={item.recordId}
+                                fields={fields}
+                                form={editForm}
+                                setForm={setEditForm}
+                                onSave={() => handleSave(item.recordId)}
+                                onCancel={() => setEditingId(null)}
+                                primaryColor={primaryColor}
+                                title="Edit Record"
+                            />
+                        );
+                    }
+
+                    return (
+                        <div
+                            key={item.recordId}
+                            className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-slate-300 hover:shadow-md transition-all duration-300"
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3">
+                                    <h4 className="font-black text-slate-900 truncate">
+                                        {fields.map(f => item.fieldData[f.key]).filter(Boolean).slice(0, 1).join(' ')}
+                                    </h4>
+                                    {isSecurity && (
+                                        <span className={`w-2 h-2 rounded-full ${item.fieldData.Status === 'Active' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]' : 'bg-slate-200'}`}></span>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="p-4 rounded-2xl border border-transparent hover:bg-slate-50 hover:border-slate-100 transition-all group/item">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <h4 className="text-sm font-black text-slate-700">{item.fieldData[fields[0].key]}</h4>
-                                            {fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList) && (
-                                                <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                    {item.fieldData[fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList).key]}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <Tooltip text="Edit Record">
-                                            <button
-                                                onClick={() => startEditing(item)}
-                                                className="opacity-0 group-hover/item:opacity-100 p-2 rounded-lg hover:bg-white hover:shadow-sm text-slate-400 hover:text-[#1a1d21] transition-all"
-                                            >
-                                                <span className="material-icons-round text-sm">edit</span>
-                                            </button>
-                                        </Tooltip>
+                                <p className="text-[10px] uppercase font-black tracking-wider text-slate-400 mt-1">
+                                    {fields.slice(1).map(f => `${f.label}: ${item.fieldData[f.key] || 'N/A'}`).join(' • ')}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                <button
+                                    onClick={() => handleEdit(item)}
+                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center"
+                                >
+                                    <span className="material-icons-round text-lg">edit</span>
+                                </button>
+                                {isSecurity && (
+                                    <button
+                                        onClick={() => {
+                                            setConfirmingId(confirmingId === item.recordId ? null : item.recordId);
+                                            setPasscodeConfirm('');
+                                        }}
+                                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${confirmingId === item.recordId ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 hover:text-slate-900'}`}
+                                    >
+                                        <span className="material-icons-round text-lg">{confirmingId === item.recordId ? 'visibility_off' : 'visibility'}</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Passcode Confirmation Modal-in-line */}
+                            {confirmingId === item.recordId && (
+                                <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-6 text-center rounded-[2.5rem]">
+                                    <h5 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-widest">Confirm Access</h5>
+                                    <p className="text-[10px] font-bold text-slate-400 mb-6">Enter authorized passcode to view this key</p>
+                                    <div className="flex gap-2 mb-8">
+                                        <input
+                                            type="password"
+                                            maxLength={6}
+                                            value={passcodeConfirm}
+                                            onChange={(e) => setPasscodeConfirm(e.target.value)}
+                                            className="w-32 bg-slate-100 border-2 border-transparent py-3 px-4 rounded-xl text-center font-black tracking-[0.3em] focus:outline-none focus:bg-white focus:border-slate-200 transition-all"
+                                            placeholder="••••••"
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                if (passcodeConfirm === item.fieldData.Passcode) {
+                                                    alert(`The passcode for ${item.fieldData.Label} is: ${item.fieldData.Passcode}`);
+                                                    setConfirmingId(null);
+                                                } else {
+                                                    alert('Incorrect passcode.');
+                                                }
+                                            }}
+                                            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                                        >
+                                            Verify
+                                        </button>
                                     </div>
-                                    {fields.find(f => f.key === 'Active') && (
-                                        <div className="mt-2 flex items-center gap-1.5">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${item.fieldData.Active == 1 ? 'bg-emerald-500' : 'bg-rose-400'}`}></div>
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.fieldData.Active == 1 ? 'Active' : 'Inactive'}</span>
-                                        </div>
-                                    )}
+                                    <button onClick={() => setConfirmingId(null)} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">Cancel</button>
                                 </div>
                             )}
                         </div>
-                    ))
+                    );
+                })}
+
+                {data.length === 0 && !isAdding && (
+                    <div className="flex flex-col items-center justify-center h-full opacity-30">
+                        <span className="material-icons-round text-4xl mb-3">inventory_2</span>
+                        <p className="text-xs font-black uppercase tracking-widest">No configurations yet</p>
+                    </div>
                 )}
             </div>
-
-            {isCreating && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center">
-                    <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-[4px] animate-fade-in"
-                        onClick={() => setIsCreating(false)}
-                    ></div>
-
-                    <div className="w-full max-w-lg bg-white shadow-2xl rounded-[2.5rem] p-8 flex flex-col relative z-10 animate-scale-in">
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-50 text-[#1a1d21] flex items-center justify-center shadow-inner">
-                                    <span className="material-icons-round text-2xl">{icon}</span>
-                                </div>
-                                <h3 className="text-2xl font-black text-slate-800 tracking-tight">New {title.slice(0, -1)}</h3>
-                            </div>
-                            <Tooltip text="Close Modal">
-                                <button onClick={() => { setIsCreating(false); setError(null); }} className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 flex items-center justify-center transition-colors">
-                                    <span className="material-icons-round text-xl">close</span>
-                                </button>
-                            </Tooltip>
-                        </div>
-
-                        <div className="space-y-6">
-                            {fields.map(field => (
-                                <div key={field.key} className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                                    {field.type === 'checkbox' ? (
-                                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                                            <button
-                                                onClick={() => handleNewChange(field.key, newRecordData[field.key] == 1 ? 0 : 1)}
-                                                className={`w-12 h-6 rounded-full relative transition-colors ${newRecordData[field.key] == 1 ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                                            >
-                                                <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${newRecordData[field.key] == 1 ? 'translate-x-6' : 'translate-x-0'}`}></span>
-                                            </button>
-                                            <span className="text-sm font-black text-slate-700">{newRecordData[field.key] == 1 ? 'Active' : 'Inactive'}</span>
-                                        </div>
-                                    ) : (
-                                        <input
-                                            type="text"
-                                            value={newRecordData[field.key] || ''}
-                                            onChange={e => handleNewChange(field.key, e.target.value)}
-                                            className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#7393B3] focus:bg-white transition-all placeholder-slate-300"
-                                            placeholder={`Enter ${field.label}...`}
-                                            autoFocus={field === fields[0]}
-                                        />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="pt-8 mt-4 border-t border-slate-50 space-y-4">
-                            <Tooltip text={`Commit and Create ${title.slice(0, -1)}`} className="w-full">
-                                <button
-                                    onClick={handleCreate}
-                                    disabled={isSaving}
-                                    className="w-full py-4 rounded-2xl bg-[#1a1d21] text-white font-black text-sm uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all transform active:scale-[0.98] disabled:opacity-50"
-                                >
-                                    {isSaving ? 'Synchronizing...' : `Create ${title.slice(0, -1)}`}
-                                </button>
-                            </Tooltip>
-                            {error && (
-                                <p className="text-[11px] font-black text-rose-500 text-center animate-shake uppercase tracking-wider">{error}</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
+
+const RecordForm = ({ fields, form, setForm, onSave, onCancel, primaryColor, title }) => (
+    <div className="bg-white p-7 rounded-3xl border-2 border-slate-900/5 shadow-xl space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{title}</span>
+            <button onClick={onCancel} className="text-slate-300 hover:text-slate-900 transition-colors">
+                <span className="material-icons-round">close</span>
+            </button>
+        </div>
+
+        <div className="space-y-5">
+            {fields.map(f => (
+                <div key={f.key} className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">{f.label}</label>
+                    <input
+                        type={f.type || 'text'}
+                        value={form[f.key] || ''}
+                        onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                        placeholder={f.placeholder}
+                        className="w-full bg-slate-50 border border-transparent py-4 px-5 rounded-2xl text-xs font-black text-slate-900 focus:outline-none focus:bg-white focus:border-slate-100 transition-all placeholder:text-slate-300"
+                    />
+                </div>
+            ))}
+        </div>
+
+        <button
+            onClick={onSave}
+            className="w-full py-4 rounded-2xl text-white font-black text-[11px] uppercase tracking-[0.2em] transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+            style={{ backgroundColor: primaryColor }}
+        >
+            Save Configuration
+        </button>
+    </div>
+);
 
 export default StructureList;
