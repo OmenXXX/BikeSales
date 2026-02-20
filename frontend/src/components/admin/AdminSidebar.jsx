@@ -25,7 +25,7 @@ const AdminSidebar = ({
     };
 
     return (
-        <div className="w-20 flex-shrink-0 relative z-50 h-screen">
+        <div className="w-20 flex-shrink-0 relative z-50 h-full">
             <aside
                 onMouseEnter={() => setIsSidebarExpanded(true)}
                 onMouseLeave={() => setIsSidebarExpanded(false)}
