@@ -45,7 +45,6 @@ api.interceptors.request.use(async (config) => {
                 delete config.data.fieldData.__pk_ID;
             }
 
-            console.log("🔒 Scrambling Request Payload:", config.data);
             const scrambled = scramble(config.data, user.uid);
             config.data = { payload: scrambled };
             // console.log("📤 Sending Scrambled Payload:", config.data);
@@ -65,11 +64,9 @@ api.interceptors.response.use((response) => {
     if (response.data && response.data._transport === 'XOR_GLOBAL' && response.data.payload) {
         const user = auth.currentUser;
         if (user) {
-            console.debug(`%c NETWORK_TAB_VIEW (Incoming): ${response.data.payload.substring(0, 20)}...`, "color: #9ca3af");
 
             const decoded = descramble(response.data.payload, user.uid);
             if (decoded) {
-                console.debug(`%c PROXY_DECODED_VIEW (Incoming):`, "color: #10b981", decoded);
                 response.data = decoded; // Unmask for the app
             }
         }
@@ -163,6 +160,42 @@ export const getEmployees = async (options = {}) => {
 };
 
 /**
+ * Dedicated semantic endpoints for structural data
+ */
+export const getCenters = async () => {
+    try {
+        const response = await api.get('/structure/centers');
+        if (response.data.success) return response.data;
+        throw { error: response.data.error || "Failed to fetch centers" };
+    } catch (error) {
+        console.error("API Error: getCenters", error);
+        throw error;
+    }
+};
+
+export const getWarehouses = async () => {
+    try {
+        const response = await api.get('/structure/warehouses');
+        if (response.data.success) return response.data;
+        throw { error: response.data.error || "Failed to fetch warehouses" };
+    } catch (error) {
+        console.error("API Error: getWarehouses", error);
+        throw error;
+    }
+};
+
+export const getModules = async () => {
+    try {
+        const response = await api.get('/structure/modules');
+        if (response.data.success) return response.data;
+        throw { error: response.data.error || "Failed to fetch modules" };
+    } catch (error) {
+        console.error("API Error: getModules", error);
+        throw error;
+    }
+};
+
+/**
  * Create a new record in a specific layout
  */
 export const createRecord = async (layout, fieldData) => {
@@ -188,9 +221,12 @@ export const createRecord = async (layout, fieldData) => {
  */
 export const updateRecord = async (layout, recordId, fieldData) => {
     try {
-        const response = await api.patch(`/filemaker/layouts/${layout}/records/${recordId}`, {
-            fieldData
-        });
+        const patchUrl = `/filemaker/layouts/${layout}/records/${recordId}`;
+        const payload = { fieldData };
+
+        console.log(`📡 API REQUEST: PATCH ${patchUrl}`, payload);
+
+        const response = await api.patch(patchUrl, payload);
 
         if (response.data.success) {
             return response.data;
@@ -262,4 +298,18 @@ export const suspendUser = async (uid, recordId) => {
 export const activateUser = async (uid, recordId) => {
     const response = await api.post('/admin/activate-user', { uid, recordId });
     return response.data;
+};
+
+export const updateUserCredentials = async (uid, credentials) => {
+    try {
+        const response = await api.post('/admin/update-credentials', {
+            uid,
+            ...credentials
+        });
+        return response.data;
+    } catch (error) {
+        console.error("API Error: updateUserCredentials", error);
+        const errorMessage = error.response?.data?.error || error.error || 'Network error';
+        throw { error: errorMessage };
+    }
 };

@@ -110,6 +110,45 @@ app.get("/filemaker/layouts/:layout/records", async (req, res) => {
 });
 
 /**
+ * STRUCTURE: Get All Centers
+ */
+app.get("/structure/centers", async (req, res) => {
+  try {
+    const deviceUUID = req.headers['x-device-uuid'];
+    const result = await proxyService.find("Centers", [{ PrimaryKey: "*" }], [], 1000, 0, req.user?.uid, deviceUUID);
+    res.status(result.success ? 200 : 500).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+/**
+ * STRUCTURE: Get All Warehouses
+ */
+app.get("/structure/warehouses", async (req, res) => {
+  try {
+    const deviceUUID = req.headers['x-device-uuid'];
+    const result = await proxyService.find("Warehouses", [{ PrimaryKey: "*" }], [], 1000, 0, req.user?.uid, deviceUUID);
+    res.status(result.success ? 200 : 500).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+/**
+ * STRUCTURE: Get All Modules
+ */
+app.get("/structure/modules", async (req, res) => {
+  try {
+    const deviceUUID = req.headers['x-device-uuid'];
+    const result = await proxyService.find("Modules", [{ Active: "1" }], [], 1000, 0, req.user?.uid, deviceUUID);
+    res.status(result.success ? 200 : 500).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+/**
  * EXECUTE SCRIPT
  */
 app.post("/filemaker/layouts/:layout/script/:script", async (req, res) => {
@@ -229,6 +268,49 @@ app.post("/admin/activate-user", async (req, res) => {
     res.status(200).json(formatResponse(true, null, null, "User Activated"));
   } catch (error) {
     handleError(res, error);
+  }
+});
+
+/**
+ * ADMIN: Update User Credentials (Firebase Auth Sync)
+ * POST /admin/update-credentials
+ */
+app.post("/admin/update-credentials", async (req, res) => {
+  try {
+    const { uid, email, password } = req.body;
+
+    if (!uid) {
+      return res.status(400).json(formatResponse(false, null, null, "User UID is required"));
+    }
+
+    const updates = {};
+    if (email) updates.email = email;
+    if (password) updates.password = password;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json(formatResponse(false, null, null, "No updates provided"));
+    }
+
+    // Update Firebase Auth
+    await admin.auth().updateUser(uid, updates);
+
+    // If password was changed, revoke tokens to force re-login
+    if (password) {
+      await admin.auth().revokeRefreshTokens(uid);
+      logger.info(`CREDENTIAL_SYNC: Password updated for user ${uid}; tokens revoked`);
+    } else {
+      logger.info(`CREDENTIAL_SYNC: Email updated for user ${uid}`);
+    }
+
+    res.status(200).json(formatResponse(true, null, null, "Credentials updated successfully in Firebase"));
+  } catch (error) {
+    logger.error("CREDENTIAL_SYNC_ERROR", error);
+    // Handle specific Firebase errors (e.g. email already in use)
+    let message = error.message;
+    if (error.code === 'auth/email-already-exists') {
+      message = "This email is already associated with another account.";
+    }
+    res.status(400).json(formatResponse(false, null, null, message));
   }
 });
 
