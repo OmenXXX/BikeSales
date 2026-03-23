@@ -1,13 +1,14 @@
 import React from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import ComingSoonView from '../components/common/ComingSoonView';
+import PartnersView from './modules/PartnersView';
 
 const ModulePage = () => {
     const { moduleName } = useParams();
 
     // Whitelist valid modules - currently everything in ModulePage is 'Coming Soon'
     // since Admin has its own dedicated /admin route and is the only 'implemented' module.
-    const validModules = ['sales', 'inventory', 'storage', 'staff', 'reports'];
+    const validModules = ['sales', 'inventory', 'storage', 'reports', 'partners'];
 
     if (!validModules.includes(moduleName?.toLowerCase())) {
         return <Navigate to="/home" replace />;
@@ -26,6 +27,14 @@ const ModulePage = () => {
         );
     }
 
+    if (moduleName?.toLowerCase() === 'partners') {
+        return (
+            <div className="h-full bg-slate-100 overflow-y-auto">
+                <PartnersView />
+            </div>
+        );
+    }
+
     return (
         <div className="h-full bg-slate-50/50">
             <ComingSoonView
@@ -33,9 +42,8 @@ const ModulePage = () => {
                 icon={
                     moduleName === 'inventory' ? 'inventory_2' :
                         moduleName === 'storage' ? 'warehouse' :
-                            moduleName === 'staff' ? 'badge' :
-                                moduleName === 'reports' ? 'insights' :
-                                    'construction'
+                            moduleName === 'reports' ? 'insights' :
+                                'construction'
                 }
             />
         </div>

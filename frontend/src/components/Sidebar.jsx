@@ -11,7 +11,7 @@ const Sidebar = ({ isCollapsed, toggleCollapsed }) => {
         { path: '/module/sales', icon: 'shopping_cart', label: 'Sales' },
         { path: '/module/inventory', icon: 'inventory_2', label: 'Inventory' },
         { path: '/module/storage', icon: 'warehouse', label: 'Storage' },
-        { path: '/module/staff', icon: 'badge', label: 'Staff' },
+        { path: '/module/partners', icon: 'contacts', label: 'Business Partners' },
         { path: '/module/reports', icon: 'insights', label: 'Reports' },
         { path: '/admin', icon: 'settings_suggest', label: 'Admin' },
     ];
