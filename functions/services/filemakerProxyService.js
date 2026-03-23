@@ -214,18 +214,55 @@ class FileMakerProxyService {
         }
     }
 
-    async update(layout, recordId, fieldData, uid = null, deviceUUID = null) {
+    async update(layout, recordId, fieldData, uid = null, deviceUUID = null, isSessionClaim = false) {
         this._validateLayout(layout);
 
         try {
-            // Check if this is a Session Claim (updating SessionKey)
-            const isSessionClaim = fieldData.hasOwnProperty('SessionKey');
+            // SECURITY: If this is a session claim, enforce strict restrictions
+            if (isSessionClaim) {
+                console.log(`\n[PROXY_DEBUG] SESSION_CLAIM bypass requested for Layout: ${layout}`);
+                // 1. Layout Restriction: Only Employees can be claimed
+                if (layout !== "Employees") {
+                    console.log(`[PROXY_DEBUG] SECURITY_BYPASS_REJECTED: Non-employee layout [${layout}]`);
+                    logger.warn(`SECURITY_VIOLATION: Attempted SessionClaim bypass on non-employee layout [${layout}]`);
+                    isSessionClaim = false; // Revoke bypass
+                } else {
+                    // 2. Field Restriction: Only allow session-related fields during bypass
+                    const allowedFields = ['SessionKey', 'CurrentlyLoggedInDevice'];
+                    const requestedFields = Object.keys(fieldData);
+                    const invalidFields = requestedFields.filter(f => !allowedFields.includes(f));
+
+                    if (invalidFields.length > 0) {
+                        console.log(`[PROXY_DEBUG] SECURITY_FIELDS_STRIPPED: ${invalidFields.join(', ')}`);
+                        logger.warn(`SECURITY_VIOLATION: Attempted to update restricted fields [${invalidFields.join(', ')}] during SessionClaim`);
+                        // Strip invalid fields to allow session repair but block privilege escalation
+                        invalidFields.forEach(f => delete fieldData[f]);
+                    }
+                    
+                    console.log(`[PROXY_DEBUG] SESSION_CLAIM_AUTHORIZED for User [${uid}] on Device [${deviceUUID}]`);
+                    logger.info(`SESSION_CLAIM: User [${uid}] is claiming session on Device [${deviceUUID}]`);
+                }
+            }
+
             await this._validateSession(uid, deviceUUID, isSessionClaim);
 
             const body = { fieldData };
             const result = await this._request("PATCH", `/layouts/${layout}/records/${recordId}`, body);
 
             return formatResponse(true, result.response, null, "Record updated successfully");
+        } catch (error) {
+            return this._handleError(error);
+        }
+    }
+
+    async delete(layout, recordId, uid = null, deviceUUID = null) {
+        this._validateLayout(layout);
+
+        try {
+            await this._validateSession(uid, deviceUUID);
+
+            const result = await this._request("DELETE", `/layouts/${layout}/records/${recordId}`);
+            return formatResponse(true, result.response, null, "Record deleted successfully");
         } catch (error) {
             return this._handleError(error);
         }
