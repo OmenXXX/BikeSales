@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { getRecords, adjustInventory } from '../../api';
+import { getRecords, adjustInventory, getMyEmployeeId } from '../../api';
 import Tooltip from '../../components/common/Tooltip';
 import { useAuth } from '../../context/AuthContext';
 import { useStatus } from '../../context/StatusContext';
@@ -375,6 +375,23 @@ const StorageView = () => {
                         </button>
 
                         <div className="flex gap-2">
+                            <Tooltip text="Debug: show my EmployeeID">
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const result = await getMyEmployeeId();
+                                            const id = result?.data?.EmployeeID;
+                                            alert(`EmployeeID: ${id || 'NOT_FOUND'}`);
+                                        } catch (e) {
+                                            alert(`EmployeeID lookup failed: ${e?.error || e?.message || 'Unknown error'}`);
+                                        }
+                                    }}
+                                    className="w-10 h-10 rounded-[1rem] bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-100 shadow-sm transition-all active:scale-90"
+                                    type="button"
+                                >
+                                    <span className="material-icons-round text-xl">badge</span>
+                                </button>
+                            </Tooltip>
                             <Tooltip text="Refresh List">
                                 <button
                                     onClick={() => viewMode === 'lookup' ? fetchInventory() : (activeTab === 'products' ? fetchAdjustmentProducts() : fetchWarehouses())}

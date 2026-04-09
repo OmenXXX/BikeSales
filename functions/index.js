@@ -149,6 +149,35 @@ app.get("/structure/modules", async (req, res) => {
 });
 
 /**
+ * DEBUG: Resolve current user's EmployeeID
+ * Uses the Firebase UID from the verified token and looks up Employees in FileMaker.
+ */
+app.get("/debug/whoami-employee", async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json(formatResponse(false, null, null, "Authentication Required"));
+    }
+
+    const deviceUUID = req.headers["x-device-uuid"];
+    const uid = req.user.uid;
+
+    const employeeResult =
+      (await proxyService.find("Employees", [{ FireBaseUserID: `==${uid}` }], [], 1, 0, uid, deviceUUID))
+
+    const emp = employeeResult?.data?.[0]?.fieldData;
+    const EmployeeID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
+
+    if (!EmployeeID) {
+      return res.status(404).json(formatResponse(false, null, null, "EmployeeID not found for current user"));
+    }
+
+    return res.status(200).json(formatResponse(true, { EmployeeID }));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+/**
  * EXECUTE SCRIPT
  */
 app.post("/filemaker/layouts/:layout/script/:script", async (req, res) => {

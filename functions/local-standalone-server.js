@@ -71,6 +71,31 @@ app.get("/filemaker/layouts/BusinessPartners/records", (req, res) => {
 
 app.get("/ping", (req, res) => res.json({ status: "alive[VERSION 3.7]", timestamp: new Date() }));
 
+/**
+ * DEBUG: Resolve current user's EmployeeID
+ */
+app.get("/debug/whoami-employee", async (req, res) => {
+    try {
+        const deviceUUID = req.headers["x-device-uuid"];
+        const uid = req.user?.uid;
+
+        const employeeResult =
+            (await proxyService.find("Employees", [{ FireBaseUserID: `==${uid}` }], [], 1, 0, uid, deviceUUID)) ||
+            (await proxyService.find("Employees", [{ FirebaseUID: `==${uid}` }], [], 1, 0, uid, deviceUUID));
+
+        const emp = employeeResult?.data?.[0]?.fieldData;
+        const EmployeeID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
+
+        if (!EmployeeID) {
+            return res.status(404).json(formatResponse(false, null, null, "EmployeeID not found for current user"));
+        }
+
+        return res.status(200).json(formatResponse(true, { EmployeeID }));
+    } catch (error) {
+        res.status(500).json(formatResponse(false, null, null, error.message));
+    }
+});
+
 // Route: Get Records (GET) - uses wildcard find per USER request
 app.get("/filemaker/layouts/:layout/records", async (req, res) => {
     try {

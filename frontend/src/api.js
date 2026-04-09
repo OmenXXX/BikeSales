@@ -195,6 +195,18 @@ export const getModules = async () => {
     }
 };
 
+export const getMyEmployeeId = async () => {
+    try {
+        const response = await api.get('/debug/whoami-employee');
+        if (response.data.success) return response.data;
+        throw { error: response.data.error || 'Failed to resolve EmployeeID' };
+    } catch (error) {
+        console.error('API Error: getMyEmployeeId', error);
+        const errorMessage = error.response?.data?.error || error.error || error.message || 'Network error';
+        throw { error: errorMessage };
+    }
+};
+
 /**
  * Inventory adjustment (single backend transaction):
  * - creates InventoryLogs
