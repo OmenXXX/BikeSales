@@ -292,7 +292,6 @@ app.post("/filemaker/layouts/:layout/script/:script", async (req, res) => {
 /**
  * INVENTORY: Adjust (single source of truth)
  * - Validates required fields
- * - Creates InventoryLogs record
  * - Runs FileMaker script PSOS_UpdateInventory to create/update Inventory
  */
 app.post("/inventory/adjust", async (req, res) => {
@@ -303,42 +302,37 @@ app.post("/inventory/adjust", async (req, res) => {
             WarehouseID,
             Qty,
             AdjustmentType,
-            Reason,
-            PerformedByUserID,
-            PerformedByUser
+            Reason
         } = req.body || {};
 
-        // Resolve operator from session (preferred) if not provided by UI
-        let resolvedPerformedByUserID = PerformedByUserID ? String(PerformedByUserID) : "";
-        let resolvedPerformedByUser = PerformedByUser ? String(PerformedByUser) : "";
-        if (!resolvedPerformedByUserID) {
-            const employeeResult =
-                (await proxyService.find(
-                    "Employees",
-                    [{ FireBaseUserID: `==${req.user?.uid}` }],
-                    [],
-                    1,
-                    0,
-                    req.user?.uid,
-                    deviceUUID
-                )) ||
-                (await proxyService.find(
-                    "Employees",
-                    [{ FirebaseUID: `==${req.user?.uid}` }],
-                    [],
-                    1,
-                    0,
-                    req.user?.uid,
-                    deviceUUID
-                ));
+        let resolvedPerformedByUserID = "";
+        let resolvedPerformedByUser = "";
 
-            const emp = employeeResult?.data?.[0]?.fieldData;
-            resolvedPerformedByUserID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
-            if (!resolvedPerformedByUser) {
-                const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
-                resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
-            }
-        }
+        const employeeResult =
+            (await proxyService.find(
+                "Employees",
+                [{ FireBaseUserID: `==${req.user?.uid}` }],
+                [],
+                1,
+                0,
+                req.user?.uid,
+                deviceUUID
+            )) ||
+            (await proxyService.find(
+                "Employees",
+                [{ FirebaseUID: `==${req.user?.uid}` }],
+                [],
+                1,
+                0,
+                req.user?.uid,
+                deviceUUID
+            ));
+
+        const empRecord = employeeResult?.data?.[0];
+        const emp = empRecord?.fieldData;
+        resolvedPerformedByUserID = empRecord?.recordId ? String(empRecord.recordId) : "";
+        const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
+        resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
 
         const missing = [];
         if (!ProductID) missing.push("ProductID");
@@ -358,27 +352,9 @@ app.post("/inventory/adjust", async (req, res) => {
         }
 
         const normalizedType = String(AdjustmentType).toUpperCase();
-        const signedQty = normalizedType === "SUBTRACT" || normalizedType === "OUT" ? -Math.abs(qtyNum) : Math.abs(qtyNum);
-        const logAdjustmentType = signedQty >= 0 ? "ADJUSTMENT IN" : "ADJUSTMENT OUT";
-
-        const logData = {
-            ProductID: String(ProductID),
-            WarehouseID: String(WarehouseID),
-            AdjustmentType: logAdjustmentType,
-            Reason: String(Reason),
-            Quantity: signedQty,
-            PerformedByUser: resolvedPerformedByUser,
-            PerformedByUserID: resolvedPerformedByUserID
-        };
-
-        console.log(`[LOCAL_SRV] INVENTORY_ADJUST -> InventoryLogs + PSOS_UpdateInventory script`);
+        console.log(`[LOCAL_SRV] INVENTORY_ADJUST -> PSOS_UpdateInventory script`);
         console.log(`[LOCAL_SRV] DeviceUUID Header: ${deviceUUID}`);
         console.log(`[LOCAL_SRV] Payload:`, JSON.stringify({ ProductID, WarehouseID, Qty: qtyNum, AdjustmentType: normalizedType }, null, 2));
-
-        const logResult = await proxyService.create("InventoryLogs", logData, req.user?.uid, deviceUUID);
-        if (!logResult.success) {
-            return res.status(500).json(logResult);
-        }
 
         const scriptParam = JSON.stringify({
             ProductID: String(ProductID),
@@ -392,7 +368,7 @@ app.post("/inventory/adjust", async (req, res) => {
 
         const scriptResult = await proxyService.executeScript("Inventory", "PSOS_UpdateInventory", scriptParam, req.user?.uid, deviceUUID);
         if (!scriptResult.success) {
-            return res.status(500).json(formatResponse(false, { logResult, scriptResult }, null, "Adjustment logged, but inventory script failed"));
+            return res.status(500).json(formatResponse(false, { scriptResult }, null, "Inventory script failed"));
         }
 
         const scriptResultText =
@@ -410,10 +386,10 @@ app.post("/inventory/adjust", async (req, res) => {
         const status = parsed?.Status || parsed?.status;
         const message = parsed?.Message || parsed?.message;
         if (status && String(status).toLowerCase() !== "success") {
-            return res.status(400).json(formatResponse(false, { logResult, scriptResult }, null, message || "Inventory script failed"));
+            return res.status(400).json(formatResponse(false, { scriptResult }, null, message || "Inventory script failed"));
         }
 
-        return res.status(200).json(formatResponse(true, { logResult, scriptResult, scriptParsed: parsed }, null, "Inventory adjusted"));
+        return res.status(200).json(formatResponse(true, { scriptResult, scriptParsed: parsed }, null, "Inventory adjusted"));
     } catch (error) {
         res.status(500).json(formatResponse(false, null, null, error.message));
     }
