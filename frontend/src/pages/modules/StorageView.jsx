@@ -194,15 +194,27 @@ const StorageView = () => {
     const handleSaveAdjustment = async () => {
         setIsSaving(true);
         try {
+            if (!userData?.EmployeeID) {
+                showStatus({
+                    type: 'error',
+                    title: 'Operator not resolved',
+                    message: 'Missing EmployeeID in session. Please log out and log back in.'
+                });
+                return;
+            }
+
             const warehouseId = selectedWarehouse.fieldData.WarehouseID ?? selectedWarehouse.fieldData.WarehouseCode;
             const payload = {
                 ProductID: selectedProduct.fieldData.ProductID,
                 WarehouseID: warehouseId,
                 Qty: qtyInput,
                 AdjustmentType: adjustmentType,
-                PerformedByUserID: userData?.EmployeeID || userData?.uid,
+                PerformedByUserID: userData.EmployeeID,
                 Reason: adjustmentReason.trim(),
-                PerformedByUser: userData?.DisplayName || userData?.LoginName || ''
+                PerformedByUser:
+                    userData?.DisplayName ||
+                    userData?.LoginName ||
+                    [userData?.Name_First, userData?.Name_Last].filter(Boolean).join(' ')
             };
 
             // Debug: see exact outbound logical JSON (pre-scramble)
