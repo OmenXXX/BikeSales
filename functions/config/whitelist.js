@@ -20,6 +20,7 @@ const ALLOWED_LAYOUTS = [
 const ALLOWED_SCRIPTS = [
     'ProcessInvoice',
     'AdjustInventory',
+    'PSOS_UpdateInventory',
     'GenerateInvoice',
     'CreateWarehouseTransfer'
 ];

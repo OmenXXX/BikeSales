@@ -200,10 +200,31 @@ app.post("/inventory/adjust", async (req, res) => {
       WarehouseID,
       Qty,
       AdjustmentType,
-      PerformedByUserID,
       Reason,
+      PerformedByUserID,
       PerformedByUser
     } = req.body || {};
+
+    // Resolve operator from session (preferred) if not provided by UI
+    let resolvedPerformedByUserID = PerformedByUserID ? String(PerformedByUserID) : "";
+    let resolvedPerformedByUser = PerformedByUser ? String(PerformedByUser) : "";
+    if (!resolvedPerformedByUserID) {
+      const employeeResult = await proxyService.find(
+        "Employees",
+        [{ FirebaseUID: `==${req.user.uid}` }],
+        [],
+        1,
+        0,
+        req.user.uid,
+        deviceUUID
+      );
+      const emp = employeeResult?.data?.[0]?.fieldData;
+      resolvedPerformedByUserID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
+      if (!resolvedPerformedByUser) {
+        const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
+        resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
+      }
+    }
 
     // Required field validation (strict)
     const missing = [];
@@ -211,7 +232,7 @@ app.post("/inventory/adjust", async (req, res) => {
     if (!WarehouseID) missing.push("WarehouseID");
     if (Qty == null || Qty === "" || Number.isNaN(Number(Qty))) missing.push("Qty");
     if (!AdjustmentType) missing.push("AdjustmentType");
-    if (!PerformedByUserID) missing.push("PerformedByUserID");
+    if (!resolvedPerformedByUserID) missing.push("PerformedByUserID");
     if (!Reason) missing.push("Reason");
 
     if (missing.length > 0) {
@@ -236,8 +257,8 @@ app.post("/inventory/adjust", async (req, res) => {
       AdjustmentType: logAdjustmentType,
       Reason: String(Reason),
       Quantity: signedQty,
-      PerformedByUser: PerformedByUser ? String(PerformedByUser) : "",
-      PerformedByUserID: String(PerformedByUserID)
+      PerformedByUser: resolvedPerformedByUser,
+      PerformedByUserID: resolvedPerformedByUserID
     };
 
     logger.info("INVENTORY_ADJUST: creating InventoryLogs + executing script", {
@@ -260,8 +281,8 @@ app.post("/inventory/adjust", async (req, res) => {
       WarehouseID: String(WarehouseID),
       Qty: qtyNum,
       AdjustmentType: normalizedType,
-      PerformedByUser: PerformedByUser ? String(PerformedByUser) : "",
-      PerformedByUserID: String(PerformedByUserID),
+      PerformedByUser: resolvedPerformedByUser,
+      PerformedByUserID: resolvedPerformedByUserID,
       Reason: String(Reason)
     });
 

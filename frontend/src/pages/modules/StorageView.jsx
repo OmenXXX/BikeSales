@@ -200,7 +200,7 @@ const StorageView = () => {
                 WarehouseID: warehouseId,
                 Qty: qtyInput,
                 AdjustmentType: adjustmentType,
-                PerformedByUserID: userData?.EmployeeID || userData?.uid || '',
+                PerformedByUserID: userData?.EmployeeID || userData?.uid,
                 Reason: adjustmentReason.trim(),
                 PerformedByUser: userData?.DisplayName || userData?.LoginName || ''
             };
