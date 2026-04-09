@@ -206,6 +206,7 @@ export const adjustInventory = async ({
     Qty,
     AdjustmentType,
     Reason,
+    FirebaseUID,
     PerformedByUserID,
     PerformedByUser
 }) => {
@@ -216,6 +217,7 @@ export const adjustInventory = async ({
             Qty,
             AdjustmentType,
             Reason,
+            FirebaseUID,
             PerformedByUserID,
             PerformedByUser
         });

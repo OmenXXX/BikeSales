@@ -128,16 +128,13 @@ export const AuthProvider = ({ children }) => {
                 throw { message: "Your account is currently suspended. Please contact your manager." };
             }
 
-            // 2. Minimalist Mapping (session essentials)
+            // 2. Minimalist Mapping (Keep only 9 essentials)
             const {
                 recordId,
                 modId,
                 fieldData: {
                     PrimaryKey,
                     FireBaseUserID,
-                    EmployeeID,
-                    LoginName,
-                    DisplayName,
                     Name_First,
                     Name_Last,
                     Role,
@@ -152,9 +149,6 @@ export const AuthProvider = ({ children }) => {
                 modId,
                 PrimaryKey,
                 FireBaseUserID,
-                EmployeeID,
-                LoginName,
-                DisplayName,
                 Name_First,
                 Name_Last,
                 Role,
