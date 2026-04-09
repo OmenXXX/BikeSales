@@ -201,10 +201,11 @@ export const getMyEmployeeId = async () => {
         if (!user?.uid) {
             throw { error: 'Not authenticated' };
         }
+        const uid = user.uid;
 
         // Use the generic FileMaker find route for Employees
         const response = await api.post('/filemaker/layouts/Employees/_find', {
-            query: [{ FireBaseUserID: `==${user.uid}` }],
+            query: [{ FireBaseUserID: `==${uid}` }],
             limit: 1,
             offset: 0
         });
@@ -216,10 +217,10 @@ export const getMyEmployeeId = async () => {
         const emp = response.data.data?.[0]?.fieldData;
         const employeeId = emp?.EmployeeID || emp?.EmployeeId || emp?.employeeID || emp?.employeeId;
         if (!employeeId) {
-            throw { error: 'EmployeeID not found for current user' };
+            throw { error: `EmployeeID not found for Firebase UID ${uid}` };
         }
 
-        return { success: true, data: { EmployeeID: String(employeeId) } };
+        return { success: true, data: { EmployeeID: String(employeeId), FirebaseUID: uid } };
     } catch (error) {
         console.error('API Error: getMyEmployeeId', error);
         const errorMessage = error.response?.data?.error || error.error || error.message || 'Network error';
