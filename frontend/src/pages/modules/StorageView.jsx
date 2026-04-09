@@ -137,8 +137,13 @@ const StorageView = () => {
     const fetchLogs = useCallback(async (productID, warehouseCode) => {
         setIsLoadingLogs(true);
         try {
+            const warehouseId = warehouseCode; // (param name kept for backwards compat)
+            const query = warehouseId
+                ? [{ ProductID: `==${productID}`, WarehouseID: `==${warehouseId}` }]
+                : [{ ProductID: `==${productID}` }];
+
             const response = await getRecords('InventoryLogs', {
-                query: [{ ProductID: `==${productID}`, WarehouseCode: `==${warehouseCode}` }],
+                query,
                 sort: [{ fieldName: 'CreationTimestamp', sortOrder: 'descend' }],
                 limit: 50
             });
@@ -283,12 +288,12 @@ const StorageView = () => {
                             {viewMode === 'lookup' || activeTab === 'products' ? (
                                 <>
                                     <span className={isSelected ? 'text-white' : 'text-indigo-600'}>{item.fieldData.ProductID || 'PROD-???'}</span>
-                                    <span className={`mx-0.5 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>•</span>
-                                    <span className="truncate max-w-[150px]">{item.fieldData.ProductName || item.fieldData.ShortDescription || 'N/A'}</span>
-                                    {item.fieldData.CategoryName && (
+                                    {viewMode === 'lookup' && item.fieldData.WarehouseName && (
                                         <>
-                                            <span className={`mx-0.5 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>•</span>
-                                            <span className={`${isSelected ? 'text-white/70' : 'text-indigo-500'} italic font-bold`}>{item.fieldData.CategoryName}</span>
+                                            <span className={`mx-0.5 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>·</span>
+                                            <span className={`truncate max-w-[220px] ${isSelected ? 'text-white/80' : 'text-slate-500'} tracking-widest`}>
+                                                {item.fieldData.WarehouseName}
+                                            </span>
                                         </>
                                     )}
                                 </>
@@ -312,15 +317,6 @@ const StorageView = () => {
                             </div>
                         )}
                     </div>
-
-                    {viewMode === 'lookup' && (
-                        <div className="flex items-center gap-1.5 mt-1 opacity-70">
-                            <span className="material-icons-round text-xs">location_on</span>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest truncate`}>
-                                {item.fieldData.WarehouseName}
-                            </span>
-                        </div>
-                    )}
                 </div>
             </div>
         );
@@ -510,22 +506,24 @@ const StorageView = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="text-right">
+                                        <div className="flex items-end justify-end gap-8">
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reserved</p>
+                                                <p className="text-4xl font-black text-indigo-600 tabular-nums leading-none">
+                                                    {selectedItem.fieldData.ReservedQty ?? selectedItem.fieldData.QuantityReserved ?? selectedItem.fieldData.QtyReserved ?? 0}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Available On Hand</p>
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-4xl font-black text-indigo-600 tabular-nums">{selectedItem.fieldData.QuantityOnHand}</span>
-                                                <span className="text-[10px] font-black text-slate-300 uppercase">units</span>
+                                            <div className="flex items-baseline justify-end gap-2">
+                                                <span className="text-4xl font-black text-indigo-600 tabular-nums leading-none">{selectedItem.fieldData.QuantityOnHand}</span>
+                                            </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                                    <div className="flex items-center gap-4 mb-8">
-                                        <span className="text-[11px] font-black text-slate-900 uppercase tracking-[0.25em]">Transaction History</span>
-                                        <div className="flex-1 h-px bg-slate-100" />
-                                    </div>
-
                                     {isLoadingLogs ? (
                                         <div className="space-y-6">
                                             {Array(5).fill(0).map((_, i) => (
@@ -541,59 +539,49 @@ const StorageView = () => {
                                             <p className="text-[10px] font-bold text-slate-200 mt-2 text-center max-w-[200px]">Stock levels have remained constant since creation.</p>
                                         </div>
                                     ) : (
-                                        <div className="relative pl-12 space-y-8">
-                                            <div className="absolute left-6 top-1 bottom-1 w-px bg-slate-100 border-l border-dashed border-slate-200" />
-                                            {logs.map((log) => (
-                                                <div key={log.recordId} className="relative group transition-all duration-300 hover:-translate-y-1">
-                                                    {/* Timeline Point */}
-                                                    <div className={`absolute left-[-24px] top-6 w-12 h-12 rounded-[1.5rem] flex items-center justify-center shadow-xl z-10 transition-transform group-hover:scale-110 ${log.fieldData.Quantity > 0 ? 'bg-emerald-500 text-white shadow-emerald-500/20' :
-                                                        log.fieldData.Quantity < 0 ? 'bg-rose-500 text-white shadow-rose-500/20' :
-                                                            'bg-slate-900 text-white shadow-slate-900/20'
-                                                        }`}>
-                                                        <span className="material-icons-round text-xl">
-                                                            {log.fieldData.Quantity > 0 ? 'south_east' :
-                                                                log.fieldData.Quantity < 0 ? 'north_west' :
-                                                                    'sync'}
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.03)] group-hover:shadow-2xl group-hover:shadow-indigo-500/5 transition-all">
-                                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                                                            <div>
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="text-[12px] font-black text-slate-800 uppercase tracking-tight">{log.fieldData.AdjustmentType}</span>
-                                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black tracking-widest uppercase ${log.fieldData.Quantity > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                                                                        }`}>
-                                                                        {log.fieldData.Quantity > 0 ? '+' : ''}{log.fieldData.Quantity} Units
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase tracking-widest">{log.fieldData.CreationTimestamp}</p>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-[8px] font-black text-slate-300 uppercase mb-1">Impact</p>
-                                                                <p className="text-base font-black text-indigo-600 tabular-nums">
-                                                                    {log.fieldData.PreviousBalance} <span className="material-icons-round text-slate-300 text-xs mx-1">east</span> {log.fieldData.NewBalance}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 pt-5 border-t border-slate-50">
-                                                            <div>
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><span className="material-icons-round text-[14px]">confirmation_number</span> Reason</p>
-                                                                <p className="text-[11px] font-bold text-slate-700 leading-tight italic">{log.fieldData.ReferenceType || 'Manual entry'}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><span className="material-icons-round text-[14px]">person</span> Operator</p>
-                                                                <p className="text-[11px] font-bold text-slate-700 truncate">{log.fieldData.PerformedByUser}</p>
-                                                            </div>
-                                                            <div className="hidden lg:block">
-                                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><span className="material-icons-round text-[14px]">label</span> Category</p>
-                                                                <p className="text-[11px] font-bold text-slate-700">{log.fieldData.AdjustmentType?.split(' ')[1] || 'Internal'}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                        <div className="space-y-2">
+                                            <div className="sticky top-0 z-10 py-2 bg-white/40 backdrop-blur-md border-b border-slate-100">
+                                                <div className="grid grid-cols-12 gap-3">
+                                                    <span className="col-span-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Date / Time</span>
+                                                    <span className="col-span-6 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Reason</span>
+                                                    <span className="col-span-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">Qty</span>
+                                                    <span className="col-span-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">New Bal</span>
                                                 </div>
-                                            ))}
+                                            </div>
+
+                                            {logs.map((log) => {
+                                                const qtyRaw = Number(log.fieldData?.Quantity ?? 0) || 0;
+                                                const adjType = (log.fieldData?.AdjustmentType || '').toUpperCase();
+                                                const isSubtract = adjType === 'SUBTRACT' || qtyRaw < 0;
+                                                const qtyAbs = Math.abs(qtyRaw);
+                                                const qtyLabel = `${isSubtract ? '-' : '+'}${qtyAbs}`;
+                                                const qtyTone = isSubtract ? 'text-rose-600' : 'text-emerald-600';
+                                                const reason = log.fieldData?.Reason || '—';
+                                                const doneBy = log.fieldData?.PerformedByUser;
+                                                const reasonLabel = doneBy ? `${reason} — done by ${doneBy}` : reason;
+
+                                                return (
+                                                    <div
+                                                        key={log.recordId}
+                                                        className="bg-white rounded-[1.5rem] border border-slate-100 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.06)] px-6 py-4"
+                                                    >
+                                                        <div className="grid grid-cols-12 gap-3 items-center">
+                                                            <span className="col-span-3 text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">
+                                                                {log.fieldData?.CreationTimestamp || '—'}
+                                                            </span>
+                                                            <span className="col-span-6 text-[11px] font-bold text-slate-700 truncate">
+                                                                {reasonLabel}
+                                                            </span>
+                                                            <span className={`col-span-1 text-[11px] font-black tabular-nums text-center ${qtyTone}`}>
+                                                                {qtyLabel}
+                                                            </span>
+                                                            <span className="col-span-2 text-[11px] font-black text-slate-900 tabular-nums text-center">
+                                                                {log.fieldData?.NewBalance ?? '—'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
