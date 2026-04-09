@@ -1,0 +1,78 @@
+[
+    {
+        "recordId": "1",
+        "fieldData": {
+            "PrimaryKey": "BPR-001",
+            "PartnerID": "PTN-7742",
+            "Name": "AeroDynamics Corp",
+            "LegalForm": "Corporation",
+            "PartnerRole": "Vendor",
+            "EmailAddress": "procurement@aerodynamics.com",
+            "PhoneNumber": "+1-555-0123",
+            "WebAddress": "https://aerodynamics.com",
+            "Currency": "USD",
+            "Active": "1",
+            "ModificationTimestamp": "2024-02-25 10:00:00",
+            "ModifiedBy": "System",
+            "City": "Seattle",
+            "Country": "USA"
+        }
+    },
+    {
+        "recordId": "2",
+        "fieldData": {
+            "PrimaryKey": "BPR-002",
+            "PartnerID": "PTN-8821",
+            "Name": "Velocity Bikes Ltd",
+            "LegalForm": "Private Limited",
+            "PartnerRole": "Customer",
+            "EmailAddress": "info@velocitybikes.co.uk",
+            "PhoneNumber": "+44-20-7946-0123",
+            "WebAddress": "https://velocitybikes.co.uk",
+            "Currency": "GBP",
+            "Active": "1",
+            "ModificationTimestamp": "2024-02-24 15:30:00",
+            "ModifiedBy": "Admin",
+            "City": "London",
+            "Country": "UK"
+        }
+    },
+    {
+        "recordId": "3",
+        "fieldData": {
+            "PrimaryKey": "BPR-003",
+            "PartnerID": "PTN-1015",
+            "Name": "EcoCycle Solutions",
+            "LegalForm": "NGO",
+            "PartnerRole": "Lead",
+            "EmailAddress": "contact@ecocycle.org",
+            "PhoneNumber": "+49-30-1234567",
+            "WebAddress": "https://ecocycle.org",
+            "Currency": "EUR",
+            "Active": "0",
+            "ModificationTimestamp": "2024-02-20 09:15:00",
+            "ModifiedBy": "Staff",
+            "City": "Berlin",
+            "Country": "Germany"
+        }
+    },
+    {
+        "recordId": "4",
+        "fieldData": {
+            "PrimaryKey": "BPR-004",
+            "PartnerID": "PTN-5567",
+            "Name": "Summit Gear Supply",
+            "LegalForm": "Sole Proprietorship",
+            "PartnerRole": "Vendor",
+            "EmailAddress": "sales@summitgear.ca",
+            "PhoneNumber": "+1-416-555-6789",
+            "WebAddress": "https://summitgear.ca",
+            "Currency": "CAD",
+            "Active": "1",
+            "ModificationTimestamp": "2024-02-25 11:45:00",
+            "ModifiedBy": "System",
+            "City": "Toronto",
+            "Country": "Canada"
+        }
+    }
+]

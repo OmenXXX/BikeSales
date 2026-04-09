@@ -1,0 +1,92 @@
+[
+    {
+        "email": "derrick.magill@itelo.info",
+        "password": "derrickm",
+        "uid": "4096053f-3eb9-4089-8d19-4b36053f3eb9",
+        "displayName": "Derrick Magill"
+    },
+    {
+        "email": "philipp.egger@itelo.info",
+        "password": "philippm",
+        "uid": "e1f8273d-6b5d-4f1b-a5d5-8273d6b5d4f1",
+        "displayName": "Philipp Egger"
+    },
+    {
+        "email": "ellis.robertson@itelo.info",
+        "password": "ellism",
+        "uid": "b2d9a6c1-4c7e-4b3a-9c7e-d9a6c14c7e4b",
+        "displayName": "Ellis Robertson"
+    },
+    {
+        "email": "william.mussen@itelo.info",
+        "password": "williamm",
+        "uid": "a3c0b5e2-6f8d-4e2b-a3c0-b5e26f8d4e2b",
+        "displayName": "William Mussen"
+    },
+    {
+        "email": "javas.hegde@itelo.info",
+        "password": "javasm",
+        "uid": "d4e1c6a3-5b8d-4f3c-9b8d-e1c6a35b8d4f",
+        "displayName": "Javas Hegde"
+    },
+    {
+        "email": "alhaseena.yousuf@itelo.info",
+        "password": "haseena alf",
+        "uid": "f5f2d7b4-6c9e-4a4d-b5f2-d7b46c9e4a4d",
+        "displayName": "Alhaseena Yousuf"
+    },
+    {
+        "email": "roberta.holloway@itelo.info",
+        "password": "robertaf",
+        "uid": "e6a3c8d5-7d0f-4b5e-8ea3-c8d57d0f4b5e",
+        "displayName": "Roberta Holloway"
+    },
+    {
+        "email": "penelope.duperre@itelo.info",
+        "password": "penelopef",
+        "uid": "c7b4d9e6-8e1f-4c6f-9fb4-d9e68e1f4c6f",
+        "displayName": "Penelope Duperre"
+    },
+    {
+        "email": "kirk.lee@itelo.info",
+        "password": "kirkm1",
+        "uid": "a8c5e0f7-9f2d-4d7a-88c5-e0f79f2d4d7a",
+        "displayName": "Kirk Lee"
+    },
+    {
+        "email": "janet.gray@itelo.info",
+        "password": "janetf",
+        "uid": "b9d6f108-0a3e-4e8b-99d6-f1080a3e4e8b",
+        "displayName": "Janet Gray"
+    },
+    {
+        "email": "nelson.wilkens@itelo.info",
+        "password": "nelsonm",
+        "uid": "cac70219-1b4f-4f9c-aac7-02191b4f4f9c",
+        "displayName": "Nelson Wilkens"
+    },
+    {
+        "email": "willard.chatman@itelo.info",
+        "password": "willardm",
+        "uid": "dbd81320-2c5e-400d-bbd8-13202c5e400d",
+        "displayName": "Willard Chatman"
+    },
+    {
+        "email": "carroll.pewitt@itelo.info",
+        "password": "carrollm",
+        "uid": "ece92431-3d6f-410e-cce9-24313d6f410e",
+        "displayName": "Carroll Pewitt"
+    },
+    {
+        "email": "omen.kgp@gmail.com",
+        "password": "Ameterasu@5",
+        "uid": "fdf03542-4e7f-421f-ddf0-35424e7f421f",
+        "displayName": "Omen KGP"
+    },
+    {
+        "email": "ayanm@mindfiresolutions.com",
+        "password": "Mindfire@5",
+        "uid": "01014653-5f80-4320-e101-46535f804320",
+        "displayName": "Ayan Mukhi"
+    }
+]

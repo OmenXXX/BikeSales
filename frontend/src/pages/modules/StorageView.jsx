@@ -199,10 +199,10 @@ const StorageView = () => {
                 ProductID: selectedProduct.fieldData.ProductID,
                 WarehouseCode: selectedWarehouse.fieldData.WarehouseCode,
                 AdjustmentType: adjustmentType === 'ADD' ? 'ADJUSTMENT IN' : 'ADJUSTMENT OUT',
-                ReferenceType: adjustmentReason.trim(), // Mandatory Reason
+                Reason: adjustmentReason.trim(), // Mandatory Reason
                 Quantity: adjustmentType === 'ADD' ? qtyInput : -qtyInput,
-                PreviousBalance: previousBalance,
-                NewBalance: newBalance,
+                //PreviousBalance: previousBalance,
+                //NewBalance: newBalance,
                 PerformedByUser: userData?.DisplayName || userData?.LoginName || 'System',
                 PerformedByUserID: userData?.EmployeeID || userData?.uid || ''
             };

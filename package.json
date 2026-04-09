@@ -1,0 +1,17 @@
+{
+  "name": "bikesales-erp",
+  "version": "1.0.0",
+  "scripts": {
+    "emulators": "firebase emulators:start --only auth,firestore,ui --project bikesakes",
+    "seed": "node scripts/seed-emulator.js",
+    "server": "npm run standalone --prefix functions",
+    "frontend": "npm run dev --prefix frontend -- --host 127.0.0.1",
+    "start-all": "concurrently \"npm run emulators\" \"npm run server\" \"npm run frontend\""
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
