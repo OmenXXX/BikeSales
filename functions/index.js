@@ -183,6 +183,127 @@ app.post("/filemaker/layouts/:layout/records", async (req, res) => {
 });
 
 /**
+ * INVENTORY: Adjust (single source of truth)
+ * - Validates required fields
+ * - Creates InventoryLogs record
+ * - Runs FileMaker script PSOS_UpdateInventory to create/update Inventory
+ */
+app.post("/inventory/adjust", async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json(formatResponse(false, null, null, "Authentication Required"));
+    }
+
+    const deviceUUID = req.headers["x-device-uuid"];
+    const {
+      ProductID,
+      WarehouseID,
+      Qty,
+      AdjustmentType,
+      PerformedByUserID,
+      Reason,
+      PerformedByUser
+    } = req.body || {};
+
+    // Required field validation (strict)
+    const missing = [];
+    if (!ProductID) missing.push("ProductID");
+    if (!WarehouseID) missing.push("WarehouseID");
+    if (Qty == null || Qty === "" || Number.isNaN(Number(Qty))) missing.push("Qty");
+    if (!AdjustmentType) missing.push("AdjustmentType");
+    if (!PerformedByUserID) missing.push("PerformedByUserID");
+    if (!Reason) missing.push("Reason");
+
+    if (missing.length > 0) {
+      return res
+        .status(400)
+        .json(formatResponse(false, null, null, `Missing/invalid fields: ${missing.join(", ")}`));
+    }
+
+    const qtyNum = Number(Qty);
+    if (qtyNum <= 0) {
+      return res.status(400).json(formatResponse(false, null, null, "Qty must be > 0"));
+    }
+
+    const normalizedType = String(AdjustmentType).toUpperCase();
+    const signedQty = normalizedType === "SUBTRACT" || normalizedType === "OUT" ? -Math.abs(qtyNum) : Math.abs(qtyNum);
+    const logAdjustmentType = signedQty >= 0 ? "ADJUSTMENT IN" : "ADJUSTMENT OUT";
+
+    // 1) Create InventoryLogs record
+    const logData = {
+      ProductID: String(ProductID),
+      WarehouseID: String(WarehouseID),
+      AdjustmentType: logAdjustmentType,
+      Reason: String(Reason),
+      Quantity: signedQty,
+      PerformedByUser: PerformedByUser ? String(PerformedByUser) : "",
+      PerformedByUserID: String(PerformedByUserID)
+    };
+
+    logger.info("INVENTORY_ADJUST: creating InventoryLogs + executing script", {
+      uid: req.user.uid,
+      deviceUUID,
+      ProductID: logData.ProductID,
+      WarehouseID: logData.WarehouseID,
+      Qty: qtyNum,
+      AdjustmentType: normalizedType
+    });
+
+    const logResult = await proxyService.create("InventoryLogs", logData, req.user.uid, deviceUUID);
+    if (!logResult.success) {
+      return res.status(500).json(logResult);
+    }
+
+    // 2) Run FileMaker script to create/update Inventory
+    const scriptParam = JSON.stringify({
+      ProductID: String(ProductID),
+      WarehouseID: String(WarehouseID),
+      Qty: qtyNum,
+      AdjustmentType: normalizedType,
+      PerformedByUser: PerformedByUser ? String(PerformedByUser) : "",
+      PerformedByUserID: String(PerformedByUserID),
+      Reason: String(Reason)
+    });
+
+    const scriptResult = await proxyService.executeScript(
+      "Inventory",
+      "PSOS_UpdateInventory",
+      scriptParam,
+      req.user.uid,
+      deviceUUID
+    );
+
+    if (!scriptResult.success) {
+      return res.status(500).json(formatResponse(false, { logResult, scriptResult }, null, "Adjustment logged, but inventory script failed"));
+    }
+
+    // Script returns JSON text via FileMaker "Exit Script [Text Result: ...]"
+    // Try to parse it and convert failure into a clean API error.
+    const scriptResultText =
+      (scriptResult && scriptResult.data && (scriptResult.data.scriptResult ?? scriptResult.data.script_result)) ?? "";
+
+    let parsed = null;
+    if (typeof scriptResultText === "string" && scriptResultText.trim().startsWith("{")) {
+      try {
+        parsed = JSON.parse(scriptResultText);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    const status = parsed?.Status || parsed?.status;
+    const message = parsed?.Message || parsed?.message;
+    if (status && String(status).toLowerCase() !== "success") {
+      return res.status(400).json(formatResponse(false, { logResult, scriptResult }, null, message || "Inventory script failed"));
+    }
+
+    return res.status(200).json(formatResponse(true, { logResult, scriptResult, scriptParsed: parsed }, null, "Inventory adjusted"));
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+/**
  * UPDATE Record
  */
 app.patch("/filemaker/layouts/:layout/records/:recordId", async (req, res) => {

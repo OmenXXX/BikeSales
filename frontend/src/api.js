@@ -196,6 +196,43 @@ export const getModules = async () => {
 };
 
 /**
+ * Inventory adjustment (single backend transaction):
+ * - creates InventoryLogs
+ * - runs FileMaker script to create/update Inventory
+ */
+export const adjustInventory = async ({
+    ProductID,
+    WarehouseID,
+    Qty,
+    AdjustmentType,
+    Reason,
+    PerformedByUserID,
+    PerformedByUser
+}) => {
+    try {
+        const response = await api.post('/inventory/adjust', {
+            ProductID,
+            WarehouseID,
+            Qty,
+            AdjustmentType,
+            Reason,
+            PerformedByUserID,
+            PerformedByUser
+        });
+
+        if (response.data.success) {
+            return response.data;
+        } else {
+            throw { error: response.data.error || 'Failed to adjust inventory' };
+        }
+    } catch (error) {
+        console.error('API Error: adjustInventory', error);
+        const errorMessage = error.response?.data?.error || error.error || error.message || 'Network error';
+        throw { error: errorMessage };
+    }
+};
+
+/**
  * Create a new record in a specific layout
  */
 export const createRecord = async (layout, fieldData) => {

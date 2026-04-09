@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { getRecords, createRecord, updateRecord } from '../../api';
+import { getRecords, adjustInventory } from '../../api';
 import Tooltip from '../../components/common/Tooltip';
 import { useAuth } from '../../context/AuthContext';
 import { useStatus } from '../../context/StatusContext';
@@ -194,59 +194,33 @@ const StorageView = () => {
     const handleSaveAdjustment = async () => {
         setIsSaving(true);
         try {
-            // 1. Create Log
-            const logData = {
+            const warehouseId = selectedWarehouse.fieldData.WarehouseID ?? selectedWarehouse.fieldData.WarehouseCode;
+            const payload = {
                 ProductID: selectedProduct.fieldData.ProductID,
-                WarehouseCode: selectedWarehouse.fieldData.WarehouseCode,
-                AdjustmentType: adjustmentType === 'ADD' ? 'ADJUSTMENT IN' : 'ADJUSTMENT OUT',
-                Reason: adjustmentReason.trim(), // Mandatory Reason
-                Quantity: adjustmentType === 'ADD' ? qtyInput : -qtyInput,
-                //PreviousBalance: previousBalance,
-                //NewBalance: newBalance,
-                PerformedByUser: userData?.DisplayName || userData?.LoginName || 'System',
-                PerformedByUserID: userData?.EmployeeID || userData?.uid || ''
-            };
-
-            const inventoryPatch = {
-                QuantityOnHand: newBalance,
-                LastUpdated: new Date().toISOString()
-            };
-            const inventoryCreate = {
-                ProductID: selectedProduct.fieldData.ProductID,
-                ProductName: selectedProduct.fieldData.ShortDescription,
-                WarehouseCode: selectedWarehouse.fieldData.WarehouseCode,
-                WarehouseName: selectedWarehouse.fieldData.WarehouseName,
-                QuantityOnHand: newBalance,
-                LastUpdated: new Date().toISOString()
+                WarehouseID: warehouseId,
+                Qty: qtyInput,
+                AdjustmentType: adjustmentType,
+                PerformedByUserID: userData?.EmployeeID || userData?.uid || '',
+                Reason: adjustmentReason.trim(),
+                PerformedByUser: userData?.DisplayName || userData?.LoginName || ''
             };
 
             // Debug: see exact outbound logical JSON (pre-scramble)
             console.groupCollapsed(
-                '%c Storage manual adjustment — outbound fieldData (Network body is scrambled as { payload })',
+                '%c Storage manual adjustment — outbound JSON (Network body is scrambled as { payload })',
                 'color:#4f46e5;font-weight:bold'
             );
-            console.log('Step 1 — POST InventoryLogs', JSON.stringify({ fieldData: logData }, null, 2));
-            if (currentInventory) {
-                console.log(
-                    'Step 2 — PATCH Inventory',
-                    currentInventory.recordId,
-                    JSON.stringify({ fieldData: inventoryPatch }, null, 2)
-                );
-            } else {
-                console.log('Step 2 — POST Inventory', JSON.stringify({ fieldData: inventoryCreate }, null, 2));
-            }
+            console.log('POST /inventory/adjust', JSON.stringify(payload, null, 2));
             console.groupEnd();
 
-            await createRecord('InventoryLogs', logData);
+            await adjustInventory(payload);
 
-            // 2. Update/Create Inventory
-            if (currentInventory) {
-                await updateRecord('Inventory', currentInventory.recordId, inventoryPatch);
-            } else {
-                await createRecord('Inventory', inventoryCreate);
-            }
-
-            showStatus({ type: 'success', title: 'Adjustment Committed', message: 'Inventory updated and log recorded.' });
+            showStatus({
+                type: 'success',
+                title: 'Inventory updated',
+                message: 'Inventory updated successfully.',
+                duration: 2500
+            });
 
             // Cleanup
             setShowConfirmModal(false);
@@ -259,7 +233,7 @@ const StorageView = () => {
 
         } catch (error) {
             console.error('Save Adjustment Error:', error);
-            showStatus({ type: 'error', title: 'Transaction Failed', message: error.error || 'Failed to process adjustment.' });
+            showStatus({ type: 'error', title: 'Transaction Failed', message: error.error || error.message || 'Failed to process adjustment.' });
         } finally {
             setIsSaving(false);
         }
