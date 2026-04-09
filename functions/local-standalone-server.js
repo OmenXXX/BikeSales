@@ -312,15 +312,26 @@ app.post("/inventory/adjust", async (req, res) => {
         let resolvedPerformedByUserID = PerformedByUserID ? String(PerformedByUserID) : "";
         let resolvedPerformedByUser = PerformedByUser ? String(PerformedByUser) : "";
         if (!resolvedPerformedByUserID) {
-            const employeeResult = await proxyService.find(
-                "Employees",
-                [{ FirebaseUID: `==${req.user?.uid}` }],
-                [],
-                1,
-                0,
-                req.user?.uid,
-                deviceUUID
-            );
+            const employeeResult =
+                (await proxyService.find(
+                    "Employees",
+                    [{ FireBaseUserID: `==${req.user?.uid}` }],
+                    [],
+                    1,
+                    0,
+                    req.user?.uid,
+                    deviceUUID
+                )) ||
+                (await proxyService.find(
+                    "Employees",
+                    [{ FirebaseUID: `==${req.user?.uid}` }],
+                    [],
+                    1,
+                    0,
+                    req.user?.uid,
+                    deviceUUID
+                ));
+
             const emp = employeeResult?.data?.[0]?.fieldData;
             resolvedPerformedByUserID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
             if (!resolvedPerformedByUser) {
