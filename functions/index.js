@@ -230,8 +230,8 @@ app.post("/inventory/adjust", async (req, res) => {
 
     const empRecord = employeeResult?.data?.[0];
     const emp = empRecord?.fieldData;
-    // Requirement: pass employee recordId as PerformedByUserID
-    resolvedPerformedByUserID = empRecord?.recordId ? String(empRecord.recordId) : "";
+    // Requirement: pass employee recordId as PerformedByUserID (text)
+    resolvedPerformedByUserID = empRecord?.recordId != null ? String(empRecord.recordId) : "";
     const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
     resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
 
@@ -267,14 +267,15 @@ app.post("/inventory/adjust", async (req, res) => {
 
     // Execute FileMaker script to create/update Inventory (no record creation here)
     const scriptParam = JSON.stringify({
-      ProductID: String(ProductID),
-      WarehouseID: String(WarehouseID),
-      Qty: qtyNum,
+      ProductId: String(ProductID),
+      WarehouseId: String(WarehouseID),
+      Quantity: qtyNum,
       AdjustmentType: normalizedType,
-      PerformedByUser: resolvedPerformedByUser,
       PerformedByUserID: resolvedPerformedByUserID,
       Reason: String(Reason)
     });
+
+    console.log("scriptParam", scriptParam);
 
     const scriptResult = await proxyService.executeScript(
       "Inventory",
