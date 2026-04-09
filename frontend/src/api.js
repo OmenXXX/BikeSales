@@ -195,39 +195,6 @@ export const getModules = async () => {
     }
 };
 
-export const getMyEmployeeId = async () => {
-    try {
-        const user = auth.currentUser;
-        if (!user?.uid) {
-            throw { error: 'Not authenticated' };
-        }
-        const uid = user.uid;
-
-        // Use the generic FileMaker find route for Employees
-        const response = await api.post('/filemaker/layouts/Employees/_find', {
-            query: [{ FireBaseUserID: `==${uid}` }],
-            limit: 1,
-            offset: 0
-        });
-
-        if (!response.data.success) {
-            throw { error: response.data.error || 'Failed to resolve EmployeeID' };
-        }
-
-        const emp = response.data.data?.[0]?.fieldData;
-        const employeeId = emp?.EmployeeID || emp?.EmployeeId || emp?.employeeID || emp?.employeeId;
-        if (!employeeId) {
-            throw { error: `EmployeeID not found for Firebase UID ${uid}` };
-        }
-
-        return { success: true, data: { EmployeeID: String(employeeId), FirebaseUID: uid } };
-    } catch (error) {
-        console.error('API Error: getMyEmployeeId', error);
-        const errorMessage = error.response?.data?.error || error.error || error.message || 'Network error';
-        throw { error: errorMessage };
-    }
-};
-
 /**
  * Inventory adjustment (single backend transaction):
  * - creates InventoryLogs
@@ -239,9 +206,6 @@ export const adjustInventory = async ({
     Qty,
     AdjustmentType,
     Reason,
-    FirebaseUID,
-    PerformedByUserID,
-    PerformedByUser
 }) => {
     try {
         const response = await api.post('/inventory/adjust', {
@@ -249,10 +213,7 @@ export const adjustInventory = async ({
             WarehouseID,
             Qty,
             AdjustmentType,
-            Reason,
-            FirebaseUID,
-            PerformedByUserID,
-            PerformedByUser
+            Reason
         });
 
         if (response.data.success) {

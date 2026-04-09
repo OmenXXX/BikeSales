@@ -149,35 +149,6 @@ app.get("/structure/modules", async (req, res) => {
 });
 
 /**
- * DEBUG: Resolve current user's EmployeeID
- * Uses the Firebase UID from the verified token and looks up Employees in FileMaker.
- */
-app.get("/debug/whoami-employee", async (req, res) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json(formatResponse(false, null, null, "Authentication Required"));
-    }
-
-    const deviceUUID = req.headers["x-device-uuid"];
-    const uid = req.user.uid;
-
-    const employeeResult =
-      (await proxyService.find("Employees", [{ FireBaseUserID: `==${uid}` }], [], 1, 0, uid, deviceUUID))
-
-    const emp = employeeResult?.data?.[0]?.fieldData;
-    const EmployeeID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
-
-    if (!EmployeeID) {
-      return res.status(404).json(formatResponse(false, null, null, "EmployeeID not found for current user"));
-    }
-
-    return res.status(200).json(formatResponse(true, { EmployeeID }));
-  } catch (error) {
-    handleError(res, error);
-  }
-});
-
-/**
  * EXECUTE SCRIPT
  */
 app.post("/filemaker/layouts/:layout/script/:script", async (req, res) => {
@@ -235,37 +206,36 @@ app.post("/inventory/adjust", async (req, res) => {
     } = req.body || {};
 
     // Resolve operator from session (preferred) if not provided by UI
-    let resolvedPerformedByUserID = PerformedByUserID ? String(PerformedByUserID) : "";
-    let resolvedPerformedByUser = PerformedByUser ? String(PerformedByUser) : "";
-    if (!resolvedPerformedByUserID) {
-      // Employees layout key field is used elsewhere as FireBaseUserID
-      const employeeResult =
-        (await proxyService.find(
-          "Employees",
-          [{ FireBaseUserID: `==${req.user.uid}` }],
-          [],
-          1,
-          0,
-          req.user.uid,
-          deviceUUID
-        )) ||
-        (await proxyService.find(
-          "Employees",
-          [{ FirebaseUID: `==${req.user.uid}` }],
-          [],
-          1,
-          0,
-          req.user.uid,
-          deviceUUID
-        ));
+    let resolvedPerformedByUserID = "";
+    let resolvedPerformedByUser = "";
 
-      const emp = employeeResult?.data?.[0]?.fieldData;
-      resolvedPerformedByUserID = emp?.EmployeeID ? String(emp.EmployeeID) : "";
-      if (!resolvedPerformedByUser) {
-        const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
-        resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
-      }
-    }
+    // Resolve operator via Employees lookup (generic find semantics)
+    const employeeResult =
+      (await proxyService.find(
+        "Employees",
+        [{ FireBaseUserID: `==${req.user.uid}` }],
+        [],
+        1,
+        0,
+        req.user.uid,
+        deviceUUID
+      )) ||
+      (await proxyService.find(
+        "Employees",
+        [{ FirebaseUID: `==${req.user.uid}` }],
+        [],
+        1,
+        0,
+        req.user.uid,
+        deviceUUID
+      ));
+
+    const empRecord = employeeResult?.data?.[0];
+    const emp = empRecord?.fieldData;
+    // Requirement: pass employee recordId as PerformedByUserID
+    resolvedPerformedByUserID = empRecord?.recordId ? String(empRecord.recordId) : "";
+    const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
+    resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
 
     // Required field validation (strict)
     const missing = [];
