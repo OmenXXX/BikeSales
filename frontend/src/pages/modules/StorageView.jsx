@@ -207,23 +207,43 @@ const StorageView = () => {
                 PerformedByUserID: userData?.EmployeeID || userData?.uid || ''
             };
 
+            const inventoryPatch = {
+                QuantityOnHand: newBalance,
+                LastUpdated: new Date().toISOString()
+            };
+            const inventoryCreate = {
+                ProductID: selectedProduct.fieldData.ProductID,
+                ProductName: selectedProduct.fieldData.ShortDescription,
+                WarehouseCode: selectedWarehouse.fieldData.WarehouseCode,
+                WarehouseName: selectedWarehouse.fieldData.WarehouseName,
+                QuantityOnHand: newBalance,
+                LastUpdated: new Date().toISOString()
+            };
+
+            // Debug: see exact outbound logical JSON (pre-scramble)
+            console.groupCollapsed(
+                '%c Storage manual adjustment — outbound fieldData (Network body is scrambled as { payload })',
+                'color:#4f46e5;font-weight:bold'
+            );
+            console.log('Step 1 — POST InventoryLogs', JSON.stringify({ fieldData: logData }, null, 2));
+            if (currentInventory) {
+                console.log(
+                    'Step 2 — PATCH Inventory',
+                    currentInventory.recordId,
+                    JSON.stringify({ fieldData: inventoryPatch }, null, 2)
+                );
+            } else {
+                console.log('Step 2 — POST Inventory', JSON.stringify({ fieldData: inventoryCreate }, null, 2));
+            }
+            console.groupEnd();
+
             await createRecord('InventoryLogs', logData);
 
             // 2. Update/Create Inventory
             if (currentInventory) {
-                await updateRecord('Inventory', currentInventory.recordId, {
-                    QuantityOnHand: newBalance,
-                    LastUpdated: new Date().toISOString()
-                });
+                await updateRecord('Inventory', currentInventory.recordId, inventoryPatch);
             } else {
-                await createRecord('Inventory', {
-                    ProductID: selectedProduct.fieldData.ProductID,
-                    ProductName: selectedProduct.fieldData.ShortDescription,
-                    WarehouseID: selectedWarehouse.fieldData.WarehouseCode,
-                    WarehouseName: selectedWarehouse.fieldData.WarehouseName,
-                    QuantityOnHand: newBalance,
-                    LastUpdated: new Date().toISOString()
-                });
+                await createRecord('Inventory', inventoryCreate);
             }
 
             showStatus({ type: 'success', title: 'Adjustment Committed', message: 'Inventory updated and log recorded.' });
