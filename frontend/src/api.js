@@ -197,9 +197,29 @@ export const getModules = async () => {
 
 export const getMyEmployeeId = async () => {
     try {
-        const response = await api.get('/debug/whoami-employee');
-        if (response.data.success) return response.data;
-        throw { error: response.data.error || 'Failed to resolve EmployeeID' };
+        const user = auth.currentUser;
+        if (!user?.uid) {
+            throw { error: 'Not authenticated' };
+        }
+
+        // Use the generic FileMaker find route for Employees
+        const response = await api.post('/filemaker/layouts/Employees/_find', {
+            query: [{ FireBaseUserID: `==${user.uid}` }],
+            limit: 1,
+            offset: 0
+        });
+
+        if (!response.data.success) {
+            throw { error: response.data.error || 'Failed to resolve EmployeeID' };
+        }
+
+        const emp = response.data.data?.[0]?.fieldData;
+        const employeeId = emp?.EmployeeID || emp?.EmployeeId || emp?.employeeID || emp?.employeeId;
+        if (!employeeId) {
+            throw { error: 'EmployeeID not found for current user' };
+        }
+
+        return { success: true, data: { EmployeeID: String(employeeId) } };
     } catch (error) {
         console.error('API Error: getMyEmployeeId', error);
         const errorMessage = error.response?.data?.error || error.error || error.message || 'Network error';
