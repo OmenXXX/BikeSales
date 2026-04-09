@@ -330,7 +330,7 @@ app.post("/inventory/adjust", async (req, res) => {
 
         const empRecord = employeeResult?.data?.[0];
         const emp = empRecord?.fieldData;
-        resolvedPerformedByUserID = empRecord?.recordId != null ? String(empRecord.recordId) : "";
+        resolvedPerformedByUserID = emp?.EmployeeID != null ? String(emp.EmployeeID) : "";
         const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
         resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
 

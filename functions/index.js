@@ -230,8 +230,8 @@ app.post("/inventory/adjust", async (req, res) => {
 
     const empRecord = employeeResult?.data?.[0];
     const emp = empRecord?.fieldData;
-    // Requirement: pass employee recordId as PerformedByUserID (text)
-    resolvedPerformedByUserID = empRecord?.recordId != null ? String(empRecord.recordId) : "";
+    // Pass the employee's EmployeeID (not the FileMaker recordId)
+    resolvedPerformedByUserID = emp?.EmployeeID != null ? String(emp.EmployeeID) : "";
     const name = [emp?.Name_First, emp?.Name_Last].filter(Boolean).join(" ").trim();
     resolvedPerformedByUser = name || emp?.DisplayName || emp?.LoginName || "";
 
