@@ -8,4 +8,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      // Matches api.js default when VITE_API_URL is unset (local standalone on port 5001).
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        rewrite: (path) => '/bikesakes/us-central1/api' + path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })
