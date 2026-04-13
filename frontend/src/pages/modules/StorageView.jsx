@@ -333,7 +333,7 @@ const StorageView = () => {
                                 title="AvailableQty"
                             >
                                 {item.fieldData.AvailableQty != null && item.fieldData.AvailableQty !== ''
-                                    ? `${item.fieldData.AvailableQty} avail`
+                                    ? `${item.fieldData.AvailableQty} PCS`
                                     : '—'}
                             </div>
                         )}

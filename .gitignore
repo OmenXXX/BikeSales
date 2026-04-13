@@ -23,6 +23,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 firebase-debug.log*
+*-debug.log
+.cursor/
 
 # AI / Local Agent Files
 .agent/
