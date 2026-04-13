@@ -150,6 +150,40 @@ export const getRecords = async (layout, options = {}) => {
     }
 };
 
+/** Normalize AddressID from BusinessPartners for FileMaker _find (numbers, scientific notation). */
+export function normalizeAddressIdForFind(raw) {
+    if (raw === '' || raw == null) return null;
+    if (typeof raw === 'number') {
+        if (!Number.isFinite(raw)) return null;
+        return String(Math.trunc(raw));
+    }
+    const s = String(raw).trim();
+    if (!s) return null;
+    if (/^\d+(\.\d+)?[eE][+-]?\d+$/.test(s)) {
+        const n = Number(s);
+        return Number.isFinite(n) ? String(Math.round(n)) : s;
+    }
+    return s;
+}
+
+/**
+ * Second-step lookup: Addresses layout by AddressID stored on BusinessPartners.
+ */
+export const findAddressByAddressId = async (addressId) => {
+    const id = normalizeAddressIdForFind(addressId);
+    if (id == null) {
+        return {
+            success: true,
+            data: [],
+            pagination: { totalFound: 0, returnedCount: 0, limit: 0, offset: 0 },
+        };
+    }
+    return getRecords('Addresses', {
+        query: [{ AddressID: `==${id}` }],
+        limit: 5,
+    });
+};
+
 export const getEmployees = async (options = {}) => {
     try {
         const result = await getRecords('Employees', options);

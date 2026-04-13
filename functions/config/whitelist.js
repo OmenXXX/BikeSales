@@ -12,6 +12,7 @@ const ALLOWED_LAYOUTS = [
     'AuditLogs',
     'PAC',
     'BusinessPartners',
+    'Addresses',
     'Partners',
     'SalesOrders',
     'ProductCategories'

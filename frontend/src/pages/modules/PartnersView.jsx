@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getRecords } from '../../api';
 import Tooltip from '../../components/common/Tooltip';
+import PartnerDetail from '../../components/PartnerDetail';
+import PartnerListSidebar from '../../components/PartnerListSidebar';
 
 const PartnersView = () => {
     const [partners, setPartners] = useState([]);
+    const [detailPartner, setDetailPartner] = useState(null);
+    const [sidebarPartners, setSidebarPartners] = useState([]);
+    const [sidebarLoading, setSidebarLoading] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [totalRecords, setTotalRecords] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
@@ -95,7 +100,94 @@ const PartnersView = () => {
 
     const totalPages = Math.ceil(totalRecords / pageSize);
 
+    const fetchSidebarPartners = useCallback(async () => {
+        setSidebarLoading(true);
+        try {
+            const res = await getRecords('BusinessPartners', {
+                query: [{ PrimaryKey: '*' }],
+                limit: 1000,
+                sort: [{ fieldName: 'Name', sortOrder: 'ascend' }],
+            });
+            if (res.success) {
+                setSidebarPartners(res.data || []);
+            }
+        } catch (e) {
+            console.error('Error loading partner sidebar list:', e);
+        } finally {
+            setSidebarLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!detailPartner) return;
+        if (sidebarPartners.length > 0) return;
+        fetchSidebarPartners();
+    }, [detailPartner, sidebarPartners.length, fetchSidebarPartners]);
+
+    const handleSidebarSelectPartner = async (p) => {
+        try {
+            const res = await getRecords('BusinessPartners', {
+                query: [{ PrimaryKey: `==${p.fieldData.PrimaryKey}` }],
+                limit: 1,
+            });
+            if (res.success && res.data?.[0]) {
+                setDetailPartner(res.data[0]);
+            }
+        } catch (e) {
+            console.error('Error switching partner:', e);
+        }
+    };
+
+    const handleDetailSaved = useCallback(async () => {
+        const pk = detailPartner?.fieldData?.PrimaryKey;
+        await fetchPartners();
+        await fetchSidebarPartners();
+        if (!pk) return;
+        try {
+            const res = await getRecords('BusinessPartners', {
+                query: [{ PrimaryKey: `==${pk}` }],
+                limit: 1,
+            });
+            if (res.success && res.data?.[0]) {
+                setDetailPartner(res.data[0]);
+            }
+        } catch (e) {
+            console.error('refresh partner detail', e);
+        }
+    }, [detailPartner, fetchPartners, fetchSidebarPartners]);
+
+    if (detailPartner) {
+        return (
+            <div className="flex h-full min-h-0 w-full flex-1 overflow-hidden bg-slate-100">
+                <div className="hidden lg:flex w-80 flex-shrink-0 flex-col min-h-0 border-r border-slate-100 bg-white z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+                    {sidebarLoading && sidebarPartners.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center p-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            Loading…
+                        </div>
+                    ) : (
+                        <PartnerListSidebar
+                            partners={sidebarPartners}
+                            selectedPartner={detailPartner}
+                            onSelectPartner={handleSidebarSelectPartner}
+                            primaryColor="#0d9488"
+                        />
+                    )}
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                    <PartnerDetail
+                        partner={detailPartner}
+                        onBack={() => setDetailPartner(null)}
+                        onSaved={handleDetailSaved}
+                        primaryColor="#0d9488"
+                        splitView
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
+        <div className="h-full min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
         <div className="space-y-6 animate-fade-in pb-20 max-w-[1600px] mx-auto p-4 md:p-8 text-slate-900">
             {/* Data list starts below global header */}
 
@@ -295,6 +387,7 @@ const PartnersView = () => {
                                 partners.map((p) => (
                                     <tr
                                         key={p.recordId}
+                                        onClick={() => setDetailPartner(p)}
                                         className={`group hover:bg-teal-50/20 transition-all cursor-pointer ${selectedPartners.includes(p.recordId) ? 'bg-teal-50/40' : ''}`}
                                     >
                                         <td className="py-3 px-10">
@@ -342,11 +435,22 @@ const PartnersView = () => {
                                         <td className="py-3 px-10 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <Tooltip text="Edit Details">
-                                                    <button className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all hover:shadow-lg active:scale-90">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDetailPartner(p);
+                                                        }}
+                                                        className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 hover:text-teal-600 hover:border-teal-200 transition-all hover:shadow-lg active:scale-90"
+                                                    >
                                                         <span className="material-icons-round text-lg">edit</span>
                                                     </button>
                                                 </Tooltip>
-                                                <button className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all hover:shadow-lg active:scale-90">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-8 h-8 rounded-lg bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all hover:shadow-lg active:scale-90"
+                                                >
                                                     <span className="material-icons-round text-lg">more_vert</span>
                                                 </button>
                                             </div>
@@ -358,6 +462,7 @@ const PartnersView = () => {
                     </table>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

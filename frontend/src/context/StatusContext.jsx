@@ -13,11 +13,13 @@ export const useStatus = () => {
 export const StatusProvider = ({ children }) => {
     const [status, setStatus] = useState({
         isOpen: false,
-        type: 'success', // 'success', 'error', 'info', 'warning', 'confirm'
+        type: 'success', // 'success', 'error', 'info', 'warning', 'confirm', 'warning_actions'
         title: '',
         message: '',
         onConfirm: null,
-        onCancel: null
+        onCancel: null,
+        confirmButtonText: null,
+        cancelButtonText: null,
     });
     const [timer, setTimer] = useState(null);
 
@@ -36,7 +38,9 @@ export const StatusProvider = ({ children }) => {
             title: title || (type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Notification'),
             message,
             onConfirm,
-            onCancel: null
+            onCancel: null,
+            confirmButtonText: null,
+            cancelButtonText: null,
         });
 
         // Auto-dismiss for success or if duration provided
@@ -58,6 +62,8 @@ export const StatusProvider = ({ children }) => {
                 type: 'confirm',
                 title: title || 'Confirmation Required',
                 message,
+                confirmButtonText: null,
+                cancelButtonText: null,
                 onConfirm: () => {
                     hideStatus();
                     resolve(true);
@@ -70,8 +76,34 @@ export const StatusProvider = ({ children }) => {
         });
     }, [timer, hideStatus]);
 
+    /** Global warning dialog: resolves true if user chose Proceed, false for Abort. */
+    const showWarningDialog = useCallback(
+        ({ title, message, proceedLabel = 'Proceed', abortLabel = 'Abort' }) => {
+            if (timer) clearTimeout(timer);
+            return new Promise((resolve) => {
+                setStatus({
+                    isOpen: true,
+                    type: 'warning_actions',
+                    title: title || 'Warning',
+                    message,
+                    confirmButtonText: proceedLabel,
+                    cancelButtonText: abortLabel,
+                    onConfirm: () => {
+                        hideStatus();
+                        resolve(true);
+                    },
+                    onCancel: () => {
+                        hideStatus();
+                        resolve(false);
+                    },
+                });
+            });
+        },
+        [timer, hideStatus]
+    );
+
     return (
-        <StatusContext.Provider value={{ ...status, showStatus, showConfirm, hideStatus }}>
+        <StatusContext.Provider value={{ ...status, showStatus, showConfirm, showWarningDialog, hideStatus }}>
             {children}
         </StatusContext.Provider>
     );

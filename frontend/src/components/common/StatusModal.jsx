@@ -2,7 +2,8 @@ import React from 'react';
 import { useStatus } from '../../context/StatusContext';
 
 const StatusModal = () => {
-    const { isOpen, type, title, message, hideStatus, onConfirm, onCancel } = useStatus();
+    const { isOpen, type, title, message, hideStatus, onConfirm, onCancel, confirmButtonText, cancelButtonText } =
+        useStatus();
 
     if (!isOpen) return null;
 
@@ -12,7 +13,10 @@ const StatusModal = () => {
             case 'error': return 'error';
             case 'info': return 'info';
             case 'warning': return 'warning';
-            case 'confirm': return 'help_outline';
+            case 'confirm':
+                return 'help_outline';
+            case 'warning_actions':
+                return 'warning';
             default: return 'notifications';
         }
     };
@@ -23,6 +27,8 @@ const StatusModal = () => {
             case 'error': return { icon: 'text-rose-500', bg: 'bg-rose-50', border: 'border-rose-100', btn: 'bg-rose-500 hover:bg-rose-600', ring: 'ring-rose-500/20' };
             case 'warning': return { icon: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', btn: 'bg-amber-500 hover:bg-amber-600', ring: 'ring-amber-500/20' };
             case 'confirm': return { icon: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', btn: 'bg-blue-500 hover:bg-blue-600', ring: 'ring-blue-500/20' };
+            case 'warning_actions':
+                return { icon: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100', btn: 'bg-amber-500 hover:bg-amber-600', ring: 'ring-amber-500/20' };
             default: return { icon: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100', btn: 'bg-blue-500 hover:bg-blue-600', ring: 'ring-blue-500/20' };
         }
     };
@@ -100,15 +106,17 @@ const StatusModal = () => {
                                 ${colors.btn}
                             `}
                         >
-                            {type === 'confirm' ? 'Confirm' : 'Dismiss'}
+                            {type === 'confirm' || type === 'warning_actions'
+                                ? confirmButtonText || 'Confirm'
+                                : 'Dismiss'}
                         </button>
 
-                        {type === 'confirm' && (
+                        {(type === 'confirm' || type === 'warning_actions') && (
                             <button
                                 onClick={handleCancel}
                                 className="w-full py-4 rounded-2xl text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 hover:bg-slate-50"
                             >
-                                Cancel
+                                {cancelButtonText || 'Cancel'}
                             </button>
                         )}
                     </div>

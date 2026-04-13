@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Tooltip from '../common/Tooltip';
+import DetailField from '../common/DetailField';
 import { getEmployees, getRecords, updateRecord, suspendUser, activateUser, updateUserCredentials, getModules } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { useStatus } from '../../context/StatusContext';
@@ -965,55 +966,6 @@ const ChangePasswordModal = ({ onClose, onSubmit, primaryColor }) => {
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
-
-const DetailField = ({ label, field, value, onChange, isEditing, icon, primaryColor, dark, placeholder, tooltip, validationType }) => {
-    const validate = (val) => {
-        if (!val) return true;
-        if (validationType === 'name') return /^[a-zA-Z0-9 ]{1,50}$/.test(val);
-        if (validationType === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-        if (validationType === 'phone') return /^[\d\+\-\(\) ]{7,20}$/.test(val);
-        return true;
-    };
-
-    const isValid = validate(value);
-
-    return (
-        <div className="space-y-1 group w-full">
-            <label className={`text-[9px] font-black uppercase tracking-widest ml-3 transition-colors ${dark ? 'text-slate-500 group-focus-within:text-white' : 'text-slate-400 group-focus-within:text-slate-800'}`}>{label}</label>
-            <Tooltip text={!isValid ? `Invalid ${label} format` : (isEditing ? `Click to edit ${label.toLowerCase()}` : (tooltip || `Value of ${label.toLowerCase()}`))} fullWidth>
-                <div className="relative w-full">
-                    <input
-                        type="text"
-                        value={value || ''}
-                        onChange={(e) => onChange(field, e.target.value)}
-                        disabled={!isEditing}
-                        placeholder={placeholder || `Enter ${label}...`}
-                        className={`
-                            w-full h-12 lg:h-10 pl-4 pr-10 rounded-xl text-xs font-black transition-all focus:outline-none 
-                            ${dark
-                                ? 'bg-white/5 border border-white/5 text-white focus:bg-white/10 focus:border-white/20 placeholder-white/20'
-                                : 'bg-slate-50 border border-slate-50 text-slate-900 focus:bg-white focus:shadow-md focus:border-slate-100 placeholder-slate-300'
-                            }
-                            ${!isEditing && 'cursor-help'}
-                            ${!isValid && isEditing ? '!border-rose-300 !bg-rose-50/30' : ''}
-                        `}
-                        style={{
-                            borderColor: isEditing && !dark && isValid ? 'transparent' : (!isValid && isEditing ? '#fda4af' : '')
-                        }}
-                        onFocus={(e) => isEditing && !dark && isValid && (e.target.style.borderColor = primaryColor)}
-                        onBlur={(e) => !dark && isValid && (e.target.style.borderColor = 'transparent')}
-                    />
-                    {icon && (
-                        <span className={`material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-base transition-colors ${dark ? 'text-white/20' : 'text-slate-300'} ${!isValid && isEditing ? 'text-rose-400' : ''}`} style={{ color: isEditing && !dark && isValid ? primaryColor : '' }}>{icon}</span>
-                    )}
-                    {!isValid && isEditing && (
-                        <span className="material-icons-round absolute right-10 top-1/2 -translate-y-1/2 text-rose-400 text-sm animate-pulse">warning</span>
-                    )}
-                </div>
-            </Tooltip>
         </div>
     );
 };
