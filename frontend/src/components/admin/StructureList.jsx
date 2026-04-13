@@ -2,6 +2,24 @@ import React, { useState, useEffect } from 'react';
 import Tooltip from '../common/Tooltip';
 import { useStatus } from '../../context/StatusContext';
 
+/** Pair consecutive fields with the same `editRowGroup` for side-by-side edit layout. */
+const chunkFieldsByEditRowGroup = (fieldList) => {
+    const chunks = [];
+    let i = 0;
+    while (i < fieldList.length) {
+        const f = fieldList[i];
+        const g = f.editRowGroup;
+        if (g && fieldList[i + 1]?.editRowGroup === g) {
+            chunks.push([f, fieldList[i + 1]]);
+            i += 2;
+        } else {
+            chunks.push([f]);
+            i += 1;
+        }
+    }
+    return chunks;
+};
+
 const StructureList = ({
     title,
     icon,
@@ -11,7 +29,10 @@ const StructureList = ({
     onSave,
     onCreate,
     onDelete,
-    isLoading
+    isLoading,
+    onEditStart,
+    onEditEnd,
+    editFooter,
 }) => {
     const { showConfirm } = useStatus();
     const [editingId, setEditingId] = useState(null);
@@ -51,6 +72,7 @@ const StructureList = ({
     const startCreating = () => {
         const initial = {};
         fields.forEach(f => {
+            if (f.hideOnCreate || f.readOnly || f.type === 'readonly') return;
             if (f.defaultValue !== undefined) initial[f.key] = f.defaultValue;
             else initial[f.key] = '';
         });
@@ -88,6 +110,7 @@ const StructureList = ({
         if (filtered.hasOwnProperty('Passcode')) {
             setConfirmEditValue(filtered.Passcode);
         }
+        onEditStart?.(record);
     };
 
     const handleSave = async (recordId) => {
@@ -98,10 +121,18 @@ const StructureList = ({
         }
 
         try {
-            await onSave(recordId, editData);
+            const payload = {};
+            fields.forEach((f) => {
+                if (f.readOnly || f.type === 'readonly') return;
+                if (Object.prototype.hasOwnProperty.call(editData, f.key)) {
+                    payload[f.key] = editData[f.key];
+                }
+            });
+            await onSave(recordId, payload);
             setEditingId(null);
             setEditData({});
             setConfirmEditValue('');
+            onEditEnd?.();
         } catch (err) {
             setError(err.error || err.message || 'Failed to update record');
         } finally {
@@ -186,83 +217,132 @@ const StructureList = ({
                                         </div>
                                     )}
 
-                                    {fields.filter(f => f.key !== 'Active').map(field => {
-                                        if (field.key === 'Passcode') {
-                                            return (
-                                                <div key={field.key} className="grid grid-cols-2 gap-3">
-                                                    <div className="space-y-1">
+                                    {chunkFieldsByEditRowGroup(fields.filter(f => f.key !== 'Active')).map((group) => {
+                                        const renderEditField = (field) => {
+                                            if (field.hideIfEmpty && (editData[field.key] === '' || editData[field.key] == null)) {
+                                                return null;
+                                            }
+                                            if (field.readOnly || field.type === 'readonly') {
+                                                return (
+                                                    <div key={field.key} className="space-y-1 min-w-0">
                                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                                                        <input
-                                                            type="text"
-                                                            value={editData[field.key] || ''}
-                                                            onChange={e => handleEditChange(field.key, e.target.value)}
-                                                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
-                                                        />
+                                                        <div className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700">
+                                                            {editData[field.key] !== '' && editData[field.key] != null ? String(editData[field.key]) : '—'}
+                                                        </div>
                                                     </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm {field.label}</label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder="Confirm..."
-                                                            value={confirmEditValue}
-                                                            onChange={e => setConfirmEditValue(e.target.value)}
-                                                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
-                                                        />
+                                                );
+                                            }
+                                            if (field.key === 'Passcode') {
+                                                return (
+                                                    <div key={field.key} className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
+                                                            <input
+                                                                type="text"
+                                                                value={editData[field.key] || ''}
+                                                                onChange={e => handleEditChange(field.key, e.target.value)}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm {field.label}</label>
+                                                            <input
+                                                                type="password"
+                                                                placeholder="Confirm..."
+                                                                value={confirmEditValue}
+                                                                onChange={e => setConfirmEditValue(e.target.value)}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
+                                                            />
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        }
-                                        if (field.type === 'select') {
+                                                );
+                                            }
+                                            if (field.type === 'select') {
+                                                return (
+                                                    <div key={field.key} className="space-y-1">
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
+                                                        <div className="relative">
+                                                            <select
+                                                                value={editData[field.key] || ''}
+                                                                onChange={e => handleEditChange(field.key, e.target.value)}
+                                                                className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300 appearance-none"
+                                                            >
+                                                                <option value="" disabled>Select {field.label}...</option>
+                                                                {field.options?.map(opt => (
+                                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                ))}
+                                                            </select>
+                                                            <span className="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none text-sm">expand_more</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
                                             return (
                                                 <div key={field.key} className="space-y-1">
                                                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                                                    <div className="relative">
-                                                        <select
-                                                            value={editData[field.key] || ''}
-                                                            onChange={e => handleEditChange(field.key, e.target.value)}
-                                                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300 appearance-none"
-                                                        >
-                                                            <option value="" disabled>Select {field.label}...</option>
-                                                            {field.options?.map(opt => (
-                                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                            ))}
-                                                        </select>
-                                                        <span className="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none text-sm">expand_more</span>
-                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={editData[field.key] || ''}
+                                                        onChange={e => handleEditChange(field.key, e.target.value)}
+                                                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
+                                                    />
+                                                </div>
+                                            );
+                                        };
+
+                                        const cells = group.map(renderEditField).filter(Boolean);
+                                        if (cells.length === 0) return null;
+
+                                        const paired =
+                                            group.length === 2 &&
+                                            group[0]?.editRowGroup &&
+                                            group[0].editRowGroup === group[1]?.editRowGroup &&
+                                            cells.length === 2;
+
+                                        if (paired) {
+                                            return (
+                                                <div key={`${group[0].key}-${group[1].key}`} className="grid grid-cols-2 gap-3">
+                                                    {cells}
                                                 </div>
                                             );
                                         }
+
                                         return (
-                                            <div key={field.key} className="space-y-1">
-                                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{field.label}</label>
-                                                <input
-                                                    type="text"
-                                                    value={editData[field.key] || ''}
-                                                    onChange={e => handleEditChange(field.key, e.target.value)}
-                                                    className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-slate-300"
-                                                />
-                                            </div>
+                                            <React.Fragment key={group[0].key}>
+                                                {cells}
+                                            </React.Fragment>
                                         );
                                     })}
-                                    <div className="flex items-center gap-2 pt-2">
-                                        <Tooltip text="Save Changes" className="flex-1 w-full">
-                                            <button
-                                                onClick={() => handleSave(item.recordId)}
-                                                disabled={isSaving}
-                                                className="w-full py-1.5 rounded-lg bg-[#1a1d21] text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50"
-                                            >
-                                                {isSaving ? '...' : 'Save'}
-                                            </button>
-                                        </Tooltip>
-                                        <Tooltip text="Cancel Editing" className="flex-1 w-full">
-                                            <button
-                                                onClick={() => { setEditingId(null); setError(null); }}
-                                                disabled={isSaving}
-                                                className="w-full py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </Tooltip>
+                                    <div className="flex flex-nowrap items-stretch gap-2 pt-2">
+                                        <div className="min-w-0 flex-1">
+                                            <Tooltip text="Save Changes" className="block w-full h-full">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSave(item.recordId)}
+                                                    disabled={isSaving}
+                                                    className="w-full min-h-[2.25rem] py-1.5 rounded-lg bg-[#1a1d21] text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50"
+                                                >
+                                                    {isSaving ? '...' : 'Save'}
+                                                </button>
+                                            </Tooltip>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <Tooltip text="Cancel Editing" className="block w-full h-full">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setEditingId(null); setError(null); onEditEnd?.(); }}
+                                                    disabled={isSaving}
+                                                    className="w-full min-h-[2.25rem] py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </Tooltip>
+                                        </div>
+                                        {editFooter && editingId === item.recordId && (
+                                            <div className="min-w-0 flex-1 [&_button]:min-h-[2.25rem] [&_button]:w-full [&_button]:justify-center">
+                                                {editFooter(item)}
+                                            </div>
+                                        )}
                                     </div>
                                     {editingId === item.recordId && error && (
                                         <p className="text-[9px] font-bold text-rose-500 mt-2 text-center">{error}</p>
@@ -274,9 +354,9 @@ const StructureList = ({
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <h4 className="text-sm font-black text-slate-700">{item.fieldData[fields[0].key]}</h4>
-                                            {fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList) && (
+                                            {fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList && !f.readOnly && f.type !== 'readonly') && (
                                                 <p className="text-xs text-slate-400 font-medium mt-0.5">
-                                                    {item.fieldData[fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList).key]}
+                                                    {item.fieldData[fields.find((f, i) => i > 0 && f.key !== 'Active' && !f.hideInList && !f.readOnly && f.type !== 'readonly').key]}
                                                 </p>
                                             )}
                                         </div>
@@ -356,6 +436,7 @@ const StructureList = ({
 
                         <div className="space-y-6">
                             {fields.map(field => {
+                                if (field.hideOnCreate || field.readOnly || field.type === 'readonly') return null;
                                 if (field.key === 'Passcode') {
                                     return (
                                         <div key={field.key} className="grid grid-cols-2 gap-4">
