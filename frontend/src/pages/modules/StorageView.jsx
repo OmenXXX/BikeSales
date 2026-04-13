@@ -288,6 +288,17 @@ const StorageView = () => {
                             {viewMode === 'lookup' || activeTab === 'products' ? (
                                 <>
                                     <span className={isSelected ? 'text-white' : 'text-indigo-600'}>{item.fieldData.ProductID || 'PROD-???'}</span>
+                                    {item.fieldData.ShortDescription && (
+                                        <>
+                                            <span className={`mx-0.5 shrink-0 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>·</span>
+                                            <span
+                                                className={`min-w-0 truncate max-w-[min(100%,320px)] font-semibold normal-case tracking-normal ${isSelected ? 'text-white/90' : 'text-slate-600'}`}
+                                                title={item.fieldData.ShortDescription}
+                                            >
+                                                {item.fieldData.ShortDescription}
+                                            </span>
+                                        </>
+                                    )}
                                     {viewMode === 'lookup' && item.fieldData.WarehouseName && (
                                         <>
                                             <span className={`mx-0.5 ${isSelected ? 'text-white/40' : 'text-slate-300'}`}>·</span>
@@ -314,6 +325,16 @@ const StorageView = () => {
                         {viewMode === 'lookup' && (
                             <div className={`px-2 py-1 rounded-lg text-[10px] font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}>
                                 {item.fieldData.QuantityOnHand} PCS
+                            </div>
+                        )}
+                        {viewMode === 'adjustment' && activeTab === 'products' && (
+                            <div
+                                className={`px-2 py-1 rounded-lg text-[10px] font-black shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-50 text-slate-900 border border-slate-100'}`}
+                                title="AvailableQty"
+                            >
+                                {item.fieldData.AvailableQty != null && item.fieldData.AvailableQty !== ''
+                                    ? `${item.fieldData.AvailableQty} avail`
+                                    : '—'}
                             </div>
                         )}
                     </div>
@@ -509,7 +530,7 @@ const StorageView = () => {
                                         <div className="flex items-end justify-end gap-8">
                                             <div className="text-right">
                                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reserved</p>
-                                                <p className="text-4xl font-black text-indigo-600 tabular-nums leading-none">
+                                                <p className="text-4xl font-black text-slate-600 tabular-nums leading-none">
                                                     {selectedItem.fieldData.ReservedQty ?? selectedItem.fieldData.QuantityReserved ?? selectedItem.fieldData.QtyReserved ?? 0}
                                                 </p>
                                             </div>
@@ -542,10 +563,10 @@ const StorageView = () => {
                                         <div className="space-y-2">
                                             <div className="sticky top-0 z-10 py-2 bg-white/40 backdrop-blur-md border-b border-slate-100">
                                                 <div className="grid grid-cols-12 gap-3">
-                                                    <span className="col-span-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Date / Time</span>
-                                                    <span className="col-span-6 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Reason</span>
-                                                    <span className="col-span-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">Qty</span>
-                                                    <span className="col-span-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center">New Bal</span>
+                                                    <span className=" col-span-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] pl-6">Date / Time</span>
+                                                    <span className="col-span-6 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] pl-3">Reason</span>
+                                                    <span className="col-span-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center pr-5">Qty</span>
+                                                    <span className="col-span-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] text-center pr-7">New Bal</span>
                                                 </div>
                                             </div>
 
