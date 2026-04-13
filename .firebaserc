@@ -1,5 +1,6 @@
 {
   "projects": {
+    "default": "bikesakes",
     "BikeSalesStaging": "bikesakes"
   },
   "targets": {},
